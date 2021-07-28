@@ -1,5 +1,5 @@
 {
-  "name": "@wsapix/core",
+  "name": "wsapix",
   "version": "0.0.3",
   "description": "Websocket server API framework",
   "input": "./src/index.ts",
@@ -49,5 +49,6 @@
       "tsx",
       "js"
     ]
-  }
+  },
+  "gitHead": "12279da853ef8ea71795b7f933894cd79b603e1d"
 }
