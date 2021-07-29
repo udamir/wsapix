@@ -41,7 +41,7 @@ export interface ChatTypingMessageType {
 }
 
 export const userChatSchema = {
-  // $id: "Chat",
+  $id: "Chat",
   type: "object",
   properties: {
     chatId: {
@@ -54,7 +54,7 @@ export const userChatSchema = {
 }
 
 export const chatMessageSchema =  {
-  // $id: "ChatMessage",
+  $id: "ChatMessage",
   type: "object",
   properties: {
     messageId: {
