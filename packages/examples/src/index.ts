@@ -41,15 +41,14 @@ const wsapi = new WSApi<IChatClientContextState>({ server }, {
   serializer: notepack
 })
 
-wsapi.use((ctx, next) => {
+wsapi.use((ctx) => {
   // check auth
   const [path, query] = (ctx.req?.url || "").split("?")
 
-  if (query && query === "123") {
-    return next()
+  if (!query || query !== "123") {
+    ctx.send({ type: "error", message: "Wrong token!", code: 401 })
+    ctx.ws.close(4003)
   }
-  ctx.send({ type: "error", message: "Wrong token!", code: 401 })
-  ctx.ws.close(4003)
 })
 
 wsapi.path("/chat", chat.messages)
