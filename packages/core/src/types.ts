@@ -1,4 +1,4 @@
-import { IncomingMessage } from 'http'
+import { IncomingHttpHeaders, IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
 import { WSMessage } from './asyncapi'
@@ -23,7 +23,7 @@ export interface WSApiOptions {
   validator?: WSApiValidator
 }
 
-export const $meta = Symbol("meta")
+const $meta = Symbol("meta")
 
 export type ApiMessageHandler<S = any, T = any> = (ctx: ClientContext<S>, data: T) => void
 
@@ -44,6 +44,11 @@ export const apiMessage = (message: WSMessage, params: ApiMessageParams): ApiMes
   ...message,
 })
 
+export const isClientMessage = (msg: ApiMessage) => msg[$meta].kind === MessageKind.client
+export const isServerMessage = (msg: ApiMessage) => msg[$meta].kind === MessageKind.server
+export const getMatchField = (msg: ApiMessage) => msg[$meta].matchField
+export const getMessageHandler = (msg: ApiMessage) => msg[$meta].handler
+
 export interface ClientContext<T> {
   ws: WebSocket
   req: IncomingMessage
@@ -54,3 +59,15 @@ export interface ClientContext<T> {
 }
 
 export type WSApiMiddleware<T> = (ctx: ClientContext<T>) => void | Promise<void>
+
+export interface IClientHandlers {
+  onopen?: () => void
+  onerror?: (message: string, error: any) => void
+  onclose?: (code: number, reason: string) => void
+  onmessage?: (data: string | Buffer | ArrayBuffer | Buffer[]) => void
+}
+
+export interface IClientInjectParams extends IClientHandlers{
+  url?: string
+  headers?: IncomingHttpHeaders
+}

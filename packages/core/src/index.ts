@@ -1,5 +1,5 @@
 export * from "./server"
 export * from "./types"
-export * from "./mockClient"
+export * from "./client"
 export * from "./asyncapi"
 export * from "./asyncapi/types"

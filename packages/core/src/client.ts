@@ -1,10 +1,9 @@
 import { EventEmitter } from 'events'
 import WebSocket from 'ws'
 
-export class MockWebSocketClient extends EventEmitter {
-  public eventLog: Map<string,any[]> = new Map()
-  public waitEvents: any = null
+import { IClientHandlers } from './types'
 
+export class WebSocketClient extends EventEmitter {
   /** The connection is not yet open. */
   static CONNECTING: 0
   /** The connection is open and ready to communicate. */
@@ -46,32 +45,57 @@ export class MockWebSocketClient extends EventEmitter {
     this.readyState = WebSocket.OPEN
   }
 
-  public close(code?: number, data?: string): void {
-    this.readyState = WebSocket.CLOSED
-    super.emit("close", code, data)
+  public close!: (code?: number, reason?: string) => void
+  public send!: (data: any) => void
+}
+
+export class MockSocket extends WebSocketClient {
+  public client: WebSocketClient
+
+  constructor(handlers: IClientHandlers) {
+    super()
+    this.client = new WebSocketClient()
+    this.readyState = WebSocket.OPEN
+    this.client.onopen = () => handlers.onopen && handlers.onopen()
+    this.client.onerror = (event) => handlers.onerror && handlers.onerror(event.message, event.error)
+    this.client.onclose = (event) => handlers.onclose && handlers.onclose(event.code, event.reason)
+    this.client.onmessage = (event) => handlers.onmessage && handlers.onmessage(event.data)
+
+    this.client.send = (data: any) => {
+      this.emit("message", data)
+    }
+
+    this.client.close = (code?: number, reason?: string) => {
+      this.client.readyState = WebSocketClient.CLOSING
+      this.readyState = WebSocketClient.CLOSING
+      this.emit("close", code, reason)
+      this.client.readyState = WebSocketClient.CLOSED
+      this.readyState = WebSocketClient.CLOSED
+    }
+
+    this.send = (data: any) => {
+      this.client.onmessage({ type: "message", data, target: this })
+    }
+
+    this.close = (code: number = 0, reason: string = "") => {
+      this.client.readyState = WebSocketClient.CLOSING
+      this.readyState = WebSocketClient.CLOSING
+      this.client.onclose({ type: "close", target: this, code, reason, wasClean: true })
+      this.client.readyState = WebSocketClient.CLOSED
+      this.readyState = WebSocketClient.CLOSED
+    }
+
+    this.client.onopen({ target: this, type: "open" })
   }
+
   public ping(data?: any): void {
     super.emit("ping", data)
   }
+
   public pong(data?: any): void {
     super.emit("pong", data)
   }
 
-  public clearLog() {
-    this.eventLog.clear()
-    this.waitEvents = null
-  }
-
-  public send(data: any): void {
-    const message = JSON.parse(data.toString())
-
-    const events = this.eventLog.get(message.type)
-    this.eventLog.set(message.type, [ ...events || [], message ])
-
-    if (this.waitEvents && this.waitEvents.count === this.eventLog.size) {
-      this.waitEvents.done()
-    }
-  }
   public terminate(): void {
     super.emit("close")
   }

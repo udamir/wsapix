@@ -37,7 +37,7 @@ const server = new http.Server((req, res) => {
 const ajv = new Ajv({ strict: false })
 
 const wsapi = new WSApi<IChatClientContextState>({ server }, {
-  validator: ajv.validate,
+  validator: ajv.validate.bind(ajv),
   serializer: notepack
 })
 

@@ -2,9 +2,12 @@ import { IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
 import { Message } from './asyncapi/types'
-import { MockWebSocketClient } from './mockClient'
+import { MockSocket } from './client'
 import { IWSAsyncApiParams, WSAsyncApi } from './asyncapi'
-import { ApiMessage, WSApiMiddleware, WSApiOptions, ClientContext, MessageKind, $meta, noop } from './types'
+import {
+  ApiMessage, WSApiMiddleware, WSApiOptions, ClientContext, MessageKind, noop, IClientInjectParams,
+  isClientMessage, isServerMessage, getMatchField, getMessageHandler
+} from './types'
 
 export class WSApi<S> {
   public wss: WebSocket.Server
@@ -71,7 +74,7 @@ export class WSApi<S> {
       return this._onError(ctx, "Message not found")
     }
 
-    const { handler } = message[$meta]
+    const handler = getMessageHandler(message)
 
     if (!handler) {
       return this._onError(ctx, "Not implemented")
@@ -84,10 +87,12 @@ export class WSApi<S> {
     handler(ctx, event)
   }
 
-  public inject(params: any) {
-    const ws = new MockWebSocketClient()
-    const req = { ...params } as IncomingMessage
-    return this.onConnected(ws, req)
+  public async inject(params: IClientInjectParams) {
+    const { url, headers, ...handlers } = params
+    const socket = new MockSocket(handlers)
+    const req = { url, headers } as IncomingMessage
+    await this.onConnected(socket, req)
+    return socket.client
   }
 
   public asyncapi(params: IWSAsyncApiParams): string {
@@ -101,7 +106,7 @@ export class WSApi<S> {
       const subMessages: Message[] = []
 
       for (const msg of messages) {
-        if (msg[$meta].kind !== MessageKind.client) {
+        if (isServerMessage(msg)) {
           subMessages.push(msg)
         } else {
           pubMessages.push(msg)
@@ -118,22 +123,22 @@ export class WSApi<S> {
   public channelMessages(name: string) {
     const messages = this.channels.get(name)
     if (!messages) { return [] }
-    return messages.filter((msg) => msg[$meta].kind === MessageKind.client)
+    return messages.filter(isClientMessage)
   }
 
   public channelEvents(name: string) {
     const messages = this.channels.get(name)
     if (!messages) { return [] }
-    return messages.filter((msg) => msg[$meta].kind === MessageKind.server)
+    return messages.filter(isServerMessage)
   }
 
   public findMessage(channel: string, messageType: MessageKind, data: { [key: string]: any }) {
     const messages = this.channels.get(channel) || []
     return messages.find((msg) => {
-      if (msg[$meta].kind !== messageType) {
+      if (isServerMessage(msg) && messageType !== MessageKind.server) {
         return false
       }
-      const field = msg[$meta].matchField
+      const field = getMatchField(msg)
       for (const key of Object.keys(field)) {
         if (data[key] !== field[key]) {
           return false
