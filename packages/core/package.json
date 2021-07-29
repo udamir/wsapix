@@ -1,6 +1,6 @@
 {
   "name": "wsapix",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "description": "Websocket server API framework",
   "input": "./src/index.ts",
   "main": "./dist/index.js",
