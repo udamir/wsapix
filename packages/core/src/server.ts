@@ -12,6 +12,13 @@ export class WSApi<S> {
   public middlewares: WSApiMiddleware<S>[] = []
   public options: WSApiOptions
 
+  public get serializer() {
+    return this.options.serializer || {
+      encode: JSON.stringify,
+      decode: JSON.parse
+    }
+  }
+
   private _onError: (ctx: ClientContext<S>, message: string, data?: any) => void = noop
   private _onClose?: (ctx: ClientContext<S>) => void = noop
 
@@ -51,11 +58,9 @@ export class WSApi<S> {
 
   private handleChannelMessage(ctx: ClientContext<S>, data: any) {
     // decode message
-    const decode = this.options.serializer ? this.options.serializer.decode : JSON.parse
-
     let event
     try {
-      event = decode(data)
+      event = ctx.serializer.decode(data)
     } catch (error) {
       return this._onError(ctx, "Unexpected message payload")
     }
@@ -168,6 +173,7 @@ export class WSApi<S> {
       ws,
       req,
       channel,
+      serializer: this.serializer,
       state: {} as S
     } as any
 
@@ -186,8 +192,7 @@ export class WSApi<S> {
       }
 
       // encode message
-      const encode = this.options.serializer ? this.options.serializer.encode : JSON.stringify
-      const payload = encode(data)
+      const payload = ctx.serializer.encode(data)
       ws.send(payload, cb)
     }
 

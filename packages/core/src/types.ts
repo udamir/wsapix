@@ -12,11 +12,14 @@ export enum MessageKind {
 }
 
 export type WSApiValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
+
+export interface IWSSerializer {
+  encode: (data: any) => WebSocket.Data
+  decode: (data: WebSocket.Data) => any
+}
+
 export interface WSApiOptions {
-  serializer?: {
-    encode: (data: any) => WebSocket.Data
-    decode: (data: WebSocket.Data) => any
-  },
+  serializer?: IWSSerializer
   validator?: WSApiValidator
 }
 
@@ -46,6 +49,7 @@ export interface ClientContext<T> {
   req: IncomingMessage
   state: T
   channel: string
+  serializer: IWSSerializer
   send: (data: any, cb?: (err?: Error) => void) => void
 }
 
