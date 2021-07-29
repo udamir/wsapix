@@ -74,9 +74,9 @@ export class WSAsyncApi {
     if ($id) {
       if (data.type === "object") {
         Object.keys(schema.properties).forEach((key: string) => {
-          data.properties = { 
+          data.properties = {
             ...data.properties,
-            key: this.addSchemaRef(schema.properties[key])
+            [key]: this.addSchemaRef(schema.properties[key])
           }
         })
       } else if (schema.type === "array") {
