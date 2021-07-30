@@ -33,6 +33,7 @@ interface IClientState {
 }
 
 const wssOptions: WebSocket.ServerOptions = { 
+  // websocket server options
   server: new http.Server()
 }
 
