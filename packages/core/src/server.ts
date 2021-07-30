@@ -3,25 +3,21 @@ import WebSocket from 'ws'
 
 import { Message } from './asyncapi/types'
 import { MockSocket } from './client'
-import { WSChannel } from './channel'
+import { WSChannel, ChannelOptions } from './channel'
+import { ClientContext } from './context'
 import { IWSAsyncApiParams, WSAsyncApi } from './asyncapi'
 import {
-  ApiMessage, WSApiMiddleware, WSApiOptions, ClientContext, MessageKind, noop, IClientInjectParams,
-  isServerMessage, getMatchField, getMessageHandler
+  WSApiMiddleware, WSApiOptions, noop,
+  IClientInjectParams, isServerMessage, getMessageHandler, 
 } from './types'
+
+export type WSApiPlugin<S> = (wsapi: WSApi<S>) => Promise<void> | void
 
 export class WSApi<S> {
   public wss: WebSocket.Server
   public channels: Map<string, WSChannel> = new Map()
   public middlewares: WSApiMiddleware<S>[] = []
   public options: WSApiOptions
-
-  public get serializer() {
-    return this.options.serializer || {
-      encode: JSON.stringify,
-      decode: JSON.parse
-    }
-  }
 
   private _onError: (ctx: ClientContext<S>, message: string, data?: any) => void = noop
   private _onClose?: (ctx: ClientContext<S>) => void = noop
@@ -61,27 +57,31 @@ export class WSApi<S> {
   }
 
   private handleChannelMessage(ctx: ClientContext<S>, data: any) {
+    if (!ctx.channel) {
+      throw new Error(`Cannot handle client message: channel expected`)
+    }
+
     // decode message
     let event
     try {
-      event = ctx.serializer.decode(data)
+      event = ctx.channel.serializer.decode(data)
     } catch (error) {
-      return this._onError(ctx, "Unexpected message payload")
+      return this._onError(ctx, "Unexpected message payload", data)
     }
 
-    const message = this.findMessage(ctx.channel, MessageKind.client, event)
+    const message = ctx.channel.findClientMessage(event)
 
     if (!message) {
-      return this._onError(ctx, "Message not found")
+      return this._onError(ctx, "Message not found", event)
     }
 
     const handler = getMessageHandler(message)
 
     if (!handler) {
-      return this._onError(ctx, "Not implemented")
+      return this._onError(ctx, `Handler for '${ctx.channel.path}' not implemented`, event)
     }
 
-    if (!this.validatePayload(message.payload, event, (msg: string) => this._onError(ctx, msg))) {
+    if (!ctx.validatePayload(message.payload, event, (msg: string) => this._onError(ctx, msg))) {
       return
     }
 
@@ -121,28 +121,11 @@ export class WSApi<S> {
     return asyncapi.generate()
   }
 
-  public findMessage(path: string, messageType: MessageKind, data: { [key: string]: any }) {
-    const channel = this.channels.get(path)
-    const messages = channel?.messages || []
-    return messages.find((msg) => {
-      if (isServerMessage(msg) && messageType !== MessageKind.server) {
-        return false
-      }
-      const field = getMatchField(msg)
-      for (const key of Object.keys(field)) {
-        if (data[key] !== field[key]) {
-          return false
-        }
-      }
-      return true
-    })
-  }
-
-  public findChannel(url: string): string {
+  public findChannel(url: string): WSChannel | undefined {
     const [path] = url.split("?")
 
-    for (const channel of this.channels.keys()) {
-      const exp = new RegExp("\/" + channel
+    for (const [channelPath, channel] of this.channels) {
+      const exp = new RegExp("\/" + channelPath
         .replace(/^\/+|\/+$/g, "")
         .split("/")
         .map((item) => item[0] === "{" && item.slice(-1) === "}" ? "[A-Za-z0-9_.\-]+" : item)
@@ -153,55 +136,31 @@ export class WSApi<S> {
         }
     }
 
-    return this.channels.has("*") ? "*" : ""
+    return this.channels.get("*")
   }
 
-  public validatePayload = (schema: any, payload: any, error?: (msg: string) => void): boolean => {
-    if (this.options.validator) {
-      return this.options.validator(schema, payload, error)
-    }
-    return true
-  }
-
-  private createContext (ws: WebSocket, req: IncomingMessage, channel: string): ClientContext<S> {
-    const ctx = {
-      ws,
-      req,
-      channel,
-      serializer: this.serializer,
-      state: {} as S
-    } as any
-
-    ctx.send = (data: any, cb?: (err?: Error) => void) => {
-      if (this.options.validator) {
-        const message = this.findMessage(ctx.channel, MessageKind.server, data)
-
-        if (!message) {
-          const error = new Error("Cannot send message: Message schema not found")
-          if (cb) { return cb(error) } else { throw error }
-        }
-
-        if (!this.validatePayload(message.payload, data, (msg) => cb && cb(new Error(msg)))) {
-          if (!cb) { throw new Error("Cannot send message: Payload validation error") }
-        }
-      }
-
-      // encode message
-      const payload = ctx.serializer.encode(data)
-      ws.send(payload, cb)
-    }
-
-    return ctx
+  private createContext (ws: WebSocket, req: IncomingMessage, channel?: WSChannel): ClientContext<S> {
+    return new ClientContext(ws, req, channel)
   }
 
   public use(middleware: WSApiMiddleware<S>) {
     this.middlewares.push(middleware)
   }
 
-  public path(path: string, messages: ApiMessage[] = []): WSChannel {
-    const channel = this.channels.get(path) || new WSChannel()
-    channel.messages = messages
+  public route(options: ChannelOptions | WSChannel): WSChannel {
+    const channel = options instanceof WSChannel ? options : new WSChannel(options)
+    const path = channel.path
+    if (this.channels.has(path)) {
+      throw new Error(`Path '${path}' already exist!`)
+    }
+    channel._serializer = channel._serializer || this.options.serializer
+    channel.validator = channel.validator || this.options.validator
+    this.channels.set(path, channel)
     return channel
+  }
+
+  public register(plugin: WSApiPlugin<S>) {
+    return plugin(this)
   }
 
   public onError(handler: (ctx: ClientContext<S>, error: string, data?: any) => void) {

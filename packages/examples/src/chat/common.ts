@@ -1,6 +1,6 @@
-import { ApiMessage, apiMessage, ApiMessageHandler, MessageKind, Message } from "wsapix"
+import { ApiMessage, apiMessage, MessageHandler, MessageKind, Message } from "wsapix"
 
-export const сlientMessage = (type: string, data: Message, handler: ApiMessageHandler): ApiMessage =>
+export const сlientMessage = (type: string, data: Message, handler: MessageHandler): ApiMessage =>
   apiMessage({ $id: type, ...data }, { kind: MessageKind.client, matchField: { type }, handler })
 
 export const serverMessage = (type: string, data: Message): ApiMessage =>

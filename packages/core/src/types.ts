@@ -1,7 +1,7 @@
-import { IncomingHttpHeaders, IncomingMessage } from 'http'
-import WebSocket from 'ws'
+import { IncomingHttpHeaders } from 'http'
 
 import { MessageSchema } from './asyncapi'
+import { ClientContext } from './context'
 
 // tslint:disable-next-line: no-empty
 export const noop = () => {}
@@ -9,8 +9,8 @@ export const noop = () => {}
 export type WSApiValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
 
 export interface IWSSerializer {
-  encode: (data: any) => WebSocket.Data
-  decode: (data: WebSocket.Data) => any
+  encode: (data: any) => any
+  decode: (data: any) => any
 }
 
 export interface WSApiOptions {
@@ -23,11 +23,11 @@ export enum MessageKind {
   server = 1
 }
 export type MessageHandler<S = any, T = any> = (ctx: ClientContext<S>, data: T) => void
-export type MessageMatchField = { [key: string]: string }
+export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean)
 
 export interface ApiMessageParams {
   kind: MessageKind
-  matchField: MessageMatchField
+  matcher: MessageMatcher
   handler?: MessageHandler
 }
 
@@ -36,42 +36,35 @@ export interface ApiMessage extends MessageSchema {
   [$meta]: ApiMessageParams
 }
 
-export const apiMessage = (message: MessageSchema, params: ApiMessageParams): ApiMessage => ({
-  [$meta]: params,
-  ...message,
-})
+export const clientMessage = (matcher: MessageMatcher, message?: MessageSchema | MessageHandler,
+  handler?: MessageHandler): ApiMessage => {
+  if (typeof message === "function") {
+    handler = message
+    message = undefined
+  }
 
-export const clientMessage = (matchField: MessageMatchField, message: MessageSchema,
-  handler: MessageHandler): ApiMessage => ({
-  [$meta]: {
-    kind: MessageKind.client,
-    matchField,
-    handler
-  },
-  ...message,
-})
+  return {
+    [$meta]: {
+      kind: MessageKind.client,
+      matcher,
+      handler
+    },
+    ...message,
+  }
+}
 
-export const serverMessage = (matchField: MessageMatchField, message: MessageSchema): ApiMessage => ({
+export const serverMessage = (matcher: MessageMatcher, message?: MessageSchema): ApiMessage => ({
   [$meta]: {
     kind: MessageKind.server,
-    matchField
+    matcher
   },
   ...message,
 })
 
 export const isClientMessage = (msg: ApiMessage): boolean => msg[$meta].kind === MessageKind.client
 export const isServerMessage = (msg: ApiMessage): boolean => msg[$meta].kind === MessageKind.server
-export const getMatchField = (msg: ApiMessage): MessageMatchField => msg[$meta].matchField
+export const getMessageMatcher = (msg: ApiMessage): MessageMatcher => msg[$meta].matcher
 export const getMessageHandler = (msg: ApiMessage): MessageHandler | undefined => msg[$meta].handler
-
-export interface ClientContext<T> {
-  ws: WebSocket
-  req: IncomingMessage
-  state: T
-  channel: string
-  serializer: IWSSerializer
-  send: (data: any, cb?: (err?: Error) => void) => void
-}
 
 export type WSApiMiddleware<T> = (ctx: ClientContext<T>) => void | Promise<void>
 

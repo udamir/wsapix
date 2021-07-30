@@ -9,7 +9,8 @@ export const chatReadMessageSchema = {
     chatId: {
       type: "string"
     }
-  }
+  },
+  required: ["type", "chatId"]
 }
 
 export interface ChatReadMessageType {
@@ -31,7 +32,8 @@ export const chatTypingMessageSchema = {
     typing: {
       type: "boolean"
     }
-  }
+  },
+  required: ["type", "chatId", "typing"]
 }
 
 export interface ChatTypingMessageType {
@@ -50,7 +52,8 @@ export const userChatSchema = {
     name: {
       type: "string"
     }
-  }
+  },
+  required: ["chatId", "name"]
 }
 
 export const chatMessageSchema =  {
@@ -63,5 +66,6 @@ export const chatMessageSchema =  {
     text: {
       type: "string"
     }
-  }
+  },
+  required: ["messageId", "text"]
 }

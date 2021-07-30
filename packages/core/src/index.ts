@@ -1,5 +1,7 @@
 export * from "./server"
 export * from "./types"
 export * from "./client"
+export * from "./channel"
+export * from "./context"
 export * from "./asyncapi"
 export * from "./asyncapi/types"
