@@ -8,7 +8,7 @@ export interface IWSAsyncApiParams {
   externalDocs?: ExternalDocs
 }
 
-export type WSMessage = Message & { $id?: string }
+export type MessageSchema = Message & { $id?: string }
 
 export class WSAsyncApi {
   public channels: Map<string, Channel> = new Map()
@@ -37,7 +37,7 @@ export class WSAsyncApi {
     })
   }
 
-  public addChannel(name: string, pubMessages: WSMessage[], subMessages: WSMessage[], params?: any ) {
+  public addChannel(name: string, pubMessages: MessageSchema[], subMessages: MessageSchema[], params?: any ) {
     this.channels.set(name, {
       ... pubMessages.length ? { publish: {
         description: "Send messages to the server",
@@ -60,7 +60,7 @@ export class WSAsyncApi {
     })
   }
 
-  private addMessageRef (msg: WSMessage): Message | Ref {
+  private addMessageRef (msg: MessageSchema): Message | Ref {
     const { $id, ...data } = msg
     if ($id) {
       const payload = this.addSchemaRef(msg.payload)

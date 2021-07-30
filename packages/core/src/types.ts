@@ -1,15 +1,10 @@
 import { IncomingHttpHeaders, IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
-import { WSMessage } from './asyncapi'
+import { MessageSchema } from './asyncapi'
 
 // tslint:disable-next-line: no-empty
 export const noop = () => {}
-
-export enum MessageKind {
-  client = 0,
-  server = 1
-}
 
 export type WSApiValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
 
@@ -23,31 +18,51 @@ export interface WSApiOptions {
   validator?: WSApiValidator
 }
 
-const $meta = Symbol("meta")
-
-export type ApiMessageHandler<S = any, T = any> = (ctx: ClientContext<S>, data: T) => void
+export enum MessageKind {
+  client = 0,
+  server = 1
+}
+export type MessageHandler<S = any, T = any> = (ctx: ClientContext<S>, data: T) => void
+export type MessageMatchField = { [key: string]: string }
 
 export interface ApiMessageParams {
   kind: MessageKind
-  matchField: {
-    [key: string]: string
-  }
-  handler?: ApiMessageHandler
+  matchField: MessageMatchField
+  handler?: MessageHandler
 }
 
-export interface ApiMessage extends WSMessage {
+const $meta = Symbol("meta")
+export interface ApiMessage extends MessageSchema {
   [$meta]: ApiMessageParams
 }
 
-export const apiMessage = (message: WSMessage, params: ApiMessageParams): ApiMessage => ({
+export const apiMessage = (message: MessageSchema, params: ApiMessageParams): ApiMessage => ({
   [$meta]: params,
   ...message,
 })
 
-export const isClientMessage = (msg: ApiMessage) => msg[$meta].kind === MessageKind.client
-export const isServerMessage = (msg: ApiMessage) => msg[$meta].kind === MessageKind.server
-export const getMatchField = (msg: ApiMessage) => msg[$meta].matchField
-export const getMessageHandler = (msg: ApiMessage) => msg[$meta].handler
+export const clientMessage = (matchField: MessageMatchField, message: MessageSchema,
+  handler: MessageHandler): ApiMessage => ({
+  [$meta]: {
+    kind: MessageKind.client,
+    matchField,
+    handler
+  },
+  ...message,
+})
+
+export const serverMessage = (matchField: MessageMatchField, message: MessageSchema): ApiMessage => ({
+  [$meta]: {
+    kind: MessageKind.server,
+    matchField
+  },
+  ...message,
+})
+
+export const isClientMessage = (msg: ApiMessage): boolean => msg[$meta].kind === MessageKind.client
+export const isServerMessage = (msg: ApiMessage): boolean => msg[$meta].kind === MessageKind.server
+export const getMatchField = (msg: ApiMessage): MessageMatchField => msg[$meta].matchField
+export const getMessageHandler = (msg: ApiMessage): MessageHandler | undefined => msg[$meta].handler
 
 export interface ClientContext<T> {
   ws: WebSocket

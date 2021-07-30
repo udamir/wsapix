@@ -3,15 +3,16 @@ import WebSocket from 'ws'
 
 import { Message } from './asyncapi/types'
 import { MockSocket } from './client'
+import { WSChannel } from './channel'
 import { IWSAsyncApiParams, WSAsyncApi } from './asyncapi'
 import {
   ApiMessage, WSApiMiddleware, WSApiOptions, ClientContext, MessageKind, noop, IClientInjectParams,
-  isClientMessage, isServerMessage, getMatchField, getMessageHandler
+  isServerMessage, getMatchField, getMessageHandler
 } from './types'
 
 export class WSApi<S> {
   public wss: WebSocket.Server
-  public channels: Map<string, ApiMessage[]> = new Map()
+  public channels: Map<string, WSChannel> = new Map()
   public middlewares: WSApiMiddleware<S>[] = []
   public options: WSApiOptions
 
@@ -97,7 +98,7 @@ export class WSApi<S> {
 
   public asyncapi(params: IWSAsyncApiParams): string {
     const asyncapi = new WSAsyncApi(params)
-    for (const [ path, messages ] of this.channels) {
+    for (const [ path, channel ] of this.channels) {
       // parse path params
       const pathParams = {}
 
@@ -105,7 +106,7 @@ export class WSApi<S> {
       const pubMessages: Message[] = []
       const subMessages: Message[] = []
 
-      for (const msg of messages) {
+      for (const msg of channel.messages) {
         if (isServerMessage(msg)) {
           subMessages.push(msg)
         } else {
@@ -120,20 +121,9 @@ export class WSApi<S> {
     return asyncapi.generate()
   }
 
-  public channelMessages(name: string) {
-    const messages = this.channels.get(name)
-    if (!messages) { return [] }
-    return messages.filter(isClientMessage)
-  }
-
-  public channelEvents(name: string) {
-    const messages = this.channels.get(name)
-    if (!messages) { return [] }
-    return messages.filter(isServerMessage)
-  }
-
-  public findMessage(channel: string, messageType: MessageKind, data: { [key: string]: any }) {
-    const messages = this.channels.get(channel) || []
+  public findMessage(path: string, messageType: MessageKind, data: { [key: string]: any }) {
+    const channel = this.channels.get(path)
+    const messages = channel?.messages || []
     return messages.find((msg) => {
       if (isServerMessage(msg) && messageType !== MessageKind.server) {
         return false
@@ -208,8 +198,10 @@ export class WSApi<S> {
     this.middlewares.push(middleware)
   }
 
-  public path(path: string, messages: ApiMessage[]) {
-    this.channels.set(path, messages)
+  public path(path: string, messages: ApiMessage[] = []): WSChannel {
+    const channel = this.channels.get(path) || new WSChannel()
+    channel.messages = messages
+    return channel
   }
 
   public onError(handler: (ctx: ClientContext<S>, error: string, data?: any) => void) {

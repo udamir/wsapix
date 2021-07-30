@@ -25,7 +25,7 @@ npm install --save wsapix
 ```ts
 import * as http from "http"
 import Ajv from "ajv"
-import { WSApiOptions, WSApi, apiMessage, MessageKind } from "wsapix"
+import { WSApiOptions, WSApi, WSChannel } from "wsapix"
 
 // define client context state
 interface IClientState {
@@ -46,15 +46,16 @@ const wsApiOptions: WSApiOptions = {
 const wsapi = new WSApi<IClientState>(wssParams, wsApiOptions)
 
 // connection hook middleware
-wsapi.use((ctx, next) => {
+wsapi.use((ctx) => {
   // add authentication
   // ctx.state.userId = ...
 })
 
 // add path (channel)
-wsapi.path("/v1", [
-  // message from client
-  apiMessage({ 
+const v1 = new WSChannel()
+
+// message from client
+const chatMessageSchema = { 
     $id: "chat:message",
     description: "Message from user",
     payload: {
@@ -70,36 +71,34 @@ wsapi.path("/v1", [
         type: "string"
       }
     },
-  }, { 
-    kind: MessageKind.client, 
-    matchField: { type: "chat:message" }, 
-    handler: (ctx, data) => {
-      // message handler
-    }
-  })
+  }
 
-  // message from server
-  apiMessage({
-    $id: "user:update",
-    description: "User update",
-    payload: {
-      // Json schema
-      type: {
-        type: "string",
-        const: "user:update"
-      },
-      userId: {
-        type: "string"
-      },
-      update: {
-        // ...
-      }
+v1.clientMessage({ type: "chat:message" }, chatMessageSchema, (ctx, data) => {
+  // message handler
+})
+
+const userUpdateSchema = {
+  $id: "user:update",
+  description: "User update",
+  payload: {
+    // Json schema
+    type: {
+      type: "string",
+      const: "user:update"
+    },
+    userId: {
+      type: "string"
+    },
+    update: {
+      // ...
     }
-  }, {
-    kind: MessageKind.server, 
-    matchField: { type: "user:update" }, 
-  })
-])
+  }
+}
+
+// message from server
+v1.serverMessage({ type: "user:update" }, userUpdateSchema)
+
+wsapi.path("/v1", v1.messages)
 
 wsapi.onError((ctx, error) => {
   // handle errors, inc request validation errors
@@ -121,7 +120,7 @@ const asyncApi = wsapi.asyncapi({
 Wsapix comes with built-in support for fake Websocket client injection:
 
 ```ts
-const ws = await wsapi.inject({ url: "/?123" })
+const ws = await wsapi.inject({ url: "/v1?token=12345" })
 
 ws.onmessage = ({ data }) => {
   // handle client messages
