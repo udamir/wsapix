@@ -62,28 +62,30 @@ export class WSAsyncApi {
 
   private addMessageRef (msg: MessageSchema): Message | Ref {
     const { $id, ...data } = msg
+    const payload = this.addSchemaRef(msg.payload)
+    const message = { ...data, payload }
     if ($id) {
-      const payload = this.addSchemaRef(msg.payload)
-      this.messages.set($id, { ...data, payload })
+      this.messages.set($id, message)
     }
-    return $id ? { $ref: `#/components/messages/${$id}` } : data
+    return $id ? { $ref: `#/components/messages/${$id}` } : message
   }
 
   private addSchemaRef = (schema: JsonSchema): Message | Ref => {
     const { $id, ...data } = schema
-    if ($id) {
-      if (data.type === "object") {
-        Object.keys(schema.properties).forEach((key: string) => {
-          data.properties = {
-            ...data.properties,
-            [key]: this.addSchemaRef(schema.properties[key])
-          }
-        })
-      } else if (schema.type === "array") {
-        data.items = this.addSchemaRef(schema.items)
-      }
-      this.schemas.set($id, data)
+    if (data.type === "object") {
+      Object.keys(schema.properties).forEach((key: string) => {
+        data.properties = {
+          ...data.properties,
+          [key]: this.addSchemaRef(schema.properties[key])
+        }
+      })
+    } else if (schema.type === "array") {
+      data.items = this.addSchemaRef(schema.items)
     }
-    return $id ? { $ref: `#/components/schemas/${$id}` } : data
+    if ($id) {
+      this.schemas.set($id, data)
+      return { $ref: `#/components/schemas/${$id}` }
+    }
+    return data
   }
 }

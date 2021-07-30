@@ -2,7 +2,7 @@ import * as http from "http"
 import Ajv from "ajv"
 import { WSApi } from "wsapix"
 
-import * as chat from "./chat/messages"
+import * as chat from "./chat"
 import { html } from "./doc"
 
 // tslint:disable-next-line: no-var-requires
@@ -51,10 +51,10 @@ wsapi.use((ctx) => {
   }
 })
 
-wsapi.path("/chat", chat.messages)
+wsapi.route(chat.channel)
 
 wsapi.onError((ctx, error) => {
-  ctx.channel = ctx.channel || "/"
+  ctx.channel = ctx.channel || wsapi.channels.get("/")
   ctx.send({ type: "error", message: error })
   console.log(error)
 })

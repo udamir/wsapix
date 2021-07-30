@@ -1,0 +1,191 @@
+{
+  "asyncapi": "2.0.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Chat websocket API"
+  },
+  "channels": {
+    "/": {
+      "publish": {
+        "description": "Send messages to the server",
+        "operationId": "sendMessage",
+        "message": {
+          "oneOf": [
+            {
+              "description": "User read all messages in chat",
+              "payload": {
+                "$id": "ChatReadMessage",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "chat:read"
+                  },
+                  "chatId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "chatId"
+                ]
+              }
+            },
+            {
+              "description": "User start/stop typing in chat",
+              "payload": {
+                "$id": "ChatTypingMessage",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "chat:typing"
+                  },
+                  "chatId": {
+                    "type": "string"
+                  },
+                  "typing": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "type",
+                  "chatId",
+                  "typing"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "subscribe": {
+        "description": "Messages that you receive from the server",
+        "operationId": "onMessage",
+        "message": {
+          "oneOf": [
+            {
+              "description": "Backend error message",
+              "payload": {
+                "$id": "Error",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "error"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "message"
+                ]
+              }
+            },
+            {
+              "description": "New chat added",
+              "payload": {
+                "$id": "UserChatAdd",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "chat:add"
+                  },
+                  "chat": {
+                    "$id": "Chat",
+                    "type": "object",
+                    "properties": {
+                      "chatId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "chatId",
+                      "name"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "description": "Chat deleted",
+              "payload": {
+                "$id": "UserChatDelete",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "chat:delete"
+                  },
+                  "chatId": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "description": "Chat history cleaned",
+              "payload": {
+                "$id": "UserChatCleanHistory",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "chat:clean"
+                  },
+                  "chatId": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "description": "Chat message added",
+              "payload": {
+                "$id": "ChatMessageAdd",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "message:add"
+                  },
+                  "chatId": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "$id": "ChatMessage",
+                    "type": "object",
+                    "properties": {
+                      "messageId": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "messageId",
+                      "text"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "components": {
+    "messages": {},
+    "schemas": {}
+  }
+}
