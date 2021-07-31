@@ -132,7 +132,7 @@ const asyncApi = wsapi.asyncapi({
 ## Generate html documentation
 
 ```ts
-const asyncApi = wsapi.htmlDocTemplate("/asyncapi", "Chat websocket API")
+const html = wsapi.htmlDocTemplate("/asyncapi", "Chat websocket API")
 ```
 
 ## Testing
