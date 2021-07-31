@@ -3,7 +3,6 @@ import Ajv from "ajv"
 import { WSApi } from "wsapix"
 
 import * as chat from "./chat"
-import { html } from "./doc"
 
 // tslint:disable-next-line: no-var-requires
 const notepack = require("notepack.io")
@@ -27,7 +26,7 @@ const server = new http.Server((req, res) => {
     res.end(wsapi.asyncapi(asyncApiParams))
   } else if (req.url === "/") {
     res.setHeader("Content-Type", "text/html")
-    res.end(html("/wsapi"))
+    res.end(wsapi.htmlDocTemplate("/wsapi"))
   } else {
     res.writeHead(404)
     res.end()

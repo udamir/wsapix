@@ -7,6 +7,7 @@ import { WSChannel, ChannelOptions } from './channel'
 import { Message } from './asyncapi/types'
 import { ClientContext } from './context'
 import { MockSocket } from './client'
+import { html } from './template'
 
 // tslint:disable-next-line: no-empty
 export const noop = () => {}
@@ -33,7 +34,7 @@ export class WSApi<S> {
     const channel = this.findChannel(req.url || "/")
 
     // create context
-    const ctx = this.createContext(ws, req, channel)
+    const ctx = new ClientContext<S>(ws, req, channel)
 
     if (!channel) {
       this._onError(ctx, "Channel path not found!", req.url)
@@ -122,6 +123,10 @@ export class WSApi<S> {
     return asyncapi.generate()
   }
 
+  public htmlDocTemplate(asyncApiPath: string, title?: string) {
+    return html(asyncApiPath, title)
+  }
+
   public findChannel(url: string): WSChannel | undefined {
     const [path] = url.split("?")
 
@@ -138,10 +143,6 @@ export class WSApi<S> {
     }
 
     return this.channels.get("*")
-  }
-
-  private createContext (ws: WebSocket, req: IncomingMessage, channel?: WSChannel): ClientContext<S> {
-    return new ClientContext(ws, req, channel)
   }
 
   public use(middleware: WSApiMiddleware<S>) {

@@ -1,4 +1,4 @@
-export const html = (path: string) => `
+export const html = (path: string, title?: string) => `
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,7 +7,7 @@ export const html = (path: string) => `
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <meta name="theme-color" content="#000000">
 
-  <title>Websocket documentation</title>
+  <title>${title || "Websocket documentation"}</title>
 </head>
 
 <body>
