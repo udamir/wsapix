@@ -1,8 +1,8 @@
 import { ChatReadMessageType, ChatTypingMessageType } from "./schemas"
-import { MessageHandler } from "wsapix"
+import { WSMsgHandler } from "wsapix"
 import { IChatClientContextState } from ".."
 
-type ChatEventController<T> = MessageHandler<IChatClientContextState, T>
+type ChatEventController<T> = WSMsgHandler<IChatClientContextState, T>
 
 export const sendTypingStatus: ChatEventController<ChatTypingMessageType> = (ctx, data) => {
   console.log(ctx, data)
