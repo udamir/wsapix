@@ -5,20 +5,22 @@ import { WSChannel } from "wsapix"
 export const channel = new WSChannel({ path: "/" })
 
 channel.clientMessage({ type: "chat:read"}, {
+  $id: "chat:read",
   description: "User read all messages in chat",
   payload: chatReadMessageSchema,
 }, sendReadStatus)
 
 
 channel.clientMessage({ type: "chat:typing" }, {
+  $id: "chat:typing",
   description: "User start/stop typing in chat",
   payload: chatTypingMessageSchema
 }, sendTypingStatus)
 
 channel.serverMessage({ type: "error" }, {
+  $id: "error",
   description: "Backend error message",
   payload: {
-    $id: "Error",
     type: "object",
     properties: {
       type: {
@@ -37,6 +39,7 @@ channel.serverMessage({ type: "error" }, {
 })
 
 channel.serverMessage({ type: "chat:add" }, {
+  $id: "chat:add",
   description: "New chat added",
   payload: {
     $id: "UserChatAdd",
@@ -52,6 +55,7 @@ channel.serverMessage({ type: "chat:add" }, {
 })
 
 channel.serverMessage({ type: "chat:delete" }, {
+  $id: "chat:delete",
   description: "Chat deleted",
   payload: {
     $id: "UserChatDelete",
@@ -86,6 +90,7 @@ channel.serverMessage({ type: "chat:clean" }, {
 }),
 
 channel.serverMessage({ type: "message:add" }, {
+  $id: "message:add",
   description: "Chat message added",
   payload: {
     $id: "ChatMessageAdd",
