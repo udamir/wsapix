@@ -1,4 +1,6 @@
-export const chatReadMessageSchema = {
+import { JsonSchema } from "wsapix"
+
+export const chatReadMessageSchema: JsonSchema = {
   $id: "ChatReadMessage",
   type: "object",
   properties: {
@@ -18,7 +20,7 @@ export interface ChatReadMessageType {
   chatId: string
 }
 
-export const chatTypingMessageSchema = {
+export const chatTypingMessageSchema: JsonSchema = {
   $id: "ChatTypingMessage",
   type: "object",
   properties: {
@@ -42,7 +44,7 @@ export interface ChatTypingMessageType {
   typing: boolean
 }
 
-export const userChatSchema = {
+export const userChatSchema: JsonSchema = {
   $id: "Chat",
   type: "object",
   properties: {
@@ -56,7 +58,7 @@ export const userChatSchema = {
   required: ["chatId", "name"]
 }
 
-export const chatMessageSchema =  {
+export const chatMessageSchema: JsonSchema = {
   $id: "ChatMessage",
   type: "object",
   properties: {

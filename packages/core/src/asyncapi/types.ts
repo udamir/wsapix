@@ -63,11 +63,6 @@ export interface Parameter {
   schema?: JsonSchema
   location?: string
 }
-
-export interface JsonSchema {
-  [ key: string]: any
-}
-
 export interface ChannelPubSub {
   traits?: Array<OperationTrait | Ref>
   summary?: string
@@ -217,4 +212,67 @@ export interface Oauth2Flow {
 export interface ExternalDocs {
   description?: string
   url: string
+}
+
+export type JsonSchema = JsonSchemaBase | JsonSchemaNumber | JsonSchemaString 
+  | JsonSchemaGeneric | JsonSchemaObject | JsonSchemaArray | JsonSchemaObject | JsonSchemaMix
+
+type JsonSchemaMix = JsonSchemaBase & JsonSchemaNumber & JsonSchemaString 
+  & JsonSchemaGeneric & JsonSchemaObject & JsonSchemaArray & JsonSchemaObject & {
+  type: ("string" | "number" | "object" | "array" | "boolean" | "null")[]
+}
+
+interface JsonSchemaBase {
+  $ref?: string
+  id?: string
+  title?: string
+  description?: string
+  'default'?: any
+  'enum'?: any[]
+  type?: "string" | "number" | "object" | "array" | "boolean" | "null" 
+  [ key: string ]: any
+}
+
+interface JsonSchemaNumber extends JsonSchemaBase {
+  type: "number"
+  multipleOf?: number
+  maximum?: number
+  exclusiveMaximum?: boolean
+  minimum?: number
+  exclusiveMinimum?: boolean
+}
+
+interface JsonSchemaString extends JsonSchemaBase {
+  type: "string"
+  maxLength?: number
+  minLength?: number
+  pattern?: string
+}
+
+interface JsonSchemaArray extends JsonSchemaBase {
+  type: "array"
+  additionalItems?: boolean | JsonSchema
+  items?: JsonSchema | JsonSchema[]
+  maxItems?: number
+  minItems?: number
+  uniqueItems?: boolean
+}
+
+interface JsonSchemaObject extends JsonSchemaBase {
+  type: "object"
+  maxProperties?: number
+  minProperties?: number
+  required?: string[]
+  additionalProperties?: boolean | JsonSchema
+  definitions?: {[key: string]: JsonSchema}
+  properties?: {[property: string]: JsonSchema}
+  patternProperties?: {[pattern: string]: JsonSchema}
+  dependencies?: {[key: string]: JsonSchema | string[]}
+}
+
+interface JsonSchemaGeneric extends JsonSchemaBase {
+  allOf?: JsonSchema[]
+  anyOf?: JsonSchema[]
+  oneOf?: JsonSchema[]
+  not?: JsonSchema
 }
