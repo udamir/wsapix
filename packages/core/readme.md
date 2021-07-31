@@ -1,4 +1,5 @@
 # Wsapix
+<img alt="npm" src="https://img.shields.io/npm/v/wsapix"> <img alt="npm type definitions" src="https://img.shields.io/npm/types/wsapix"> <img alt="NPM" src="https://img.shields.io/npm/l/wsapix">
 
 Next generation Websocket framework for nodejs
 
