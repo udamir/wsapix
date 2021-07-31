@@ -115,14 +115,23 @@ wsapi.onError((ctx, error) => {
   ctx.channel = ctx.channel || wsapi.channels.get("v1")
   ctx.send({ type: "error", message: error })
 })
+```
 
-// generate AsyncApi schema
+## Generate AsyncApi schema
+
+```ts
 const asyncApi = wsapi.asyncapi({
   info: {
     version: "1.0.0",
     title: "Chat websocket API"
   }
 })
+```
+
+## Generate html documentation
+
+```ts
+const asyncApi = wsapi.htmlDocTemplate("/asyncapi", "Chat websocket API")
 ```
 
 ## Testing
