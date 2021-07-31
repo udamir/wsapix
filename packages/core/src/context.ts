@@ -21,7 +21,7 @@ export class ClientContext<S> {
         if (cb) { return cb(error) } else { throw error }
       }
 
-      if (!this.validatePayload(message.payload, data, (msg) => cb && cb(new Error(msg)))) {
+      if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
         if (!cb) { throw new Error("Cannot send message: Payload validation error") }
       }
     }
@@ -37,5 +37,5 @@ export class ClientContext<S> {
     }
     return true
   }
-  
+
 }

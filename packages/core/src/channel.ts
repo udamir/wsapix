@@ -1,73 +1,70 @@
+import { WSMessage, ISerializer, WSMsgHandler, WSMsgKind,  WSMsgMatcher, WSApiOptions, WSMsgValidator } from './types'
 import { MessageSchema } from './asyncapi'
-import {
-  ApiMessage,
-  clientMessage,
-  getMessageMatcher,
-  isClientMessage,
-  IWSSerializer,
-  MessageHandler,
-  MessageKind,
-  MessageMatcher,
-  serverMessage,
-  WSApiOptions,
-  WSApiValidator
-} from './types'
 
 export interface ChannelOptions extends WSApiOptions {
   path?: string
-  messages?: ApiMessage[]
+  messages?: WSMessage[]
 }
 
 export class WSChannel {
-  public messages: ApiMessage[] = []
+  public messages: WSMessage[] = []
   public path: string
-  public _serializer: IWSSerializer | undefined
-  public validator: WSApiValidator | undefined
+  public _serializer: ISerializer | undefined
+  public validator: WSMsgValidator | undefined
 
-  public get serializer(): IWSSerializer {
+  public get serializer(): ISerializer {
     return this._serializer || {
       encode: JSON.stringify,
       decode: JSON.parse
     }
   }
 
-  constructor(params?: ChannelOptions) {
-    this.path = params?.path || ""
-    this.validator = params?.validator
-    this.messages = params?.messages || []
-    this._serializer = params?.serializer
+  constructor(path?: string | ChannelOptions, options?: ChannelOptions) {
+    if (typeof path === "object") {
+      options = path
+      path = path.path
+    }
+    this.path = options?.path || "/"
+    this.validator = options?.validator
+    this.messages = options?.messages || []
+    this._serializer = options?.serializer
   }
 
-  public serverMessage (matcher: MessageMatcher, message?: MessageSchema) {
-    this.messages.push(serverMessage(matcher, message))
+  public serverMessage (matcher: WSMsgMatcher, schema?: MessageSchema) {
+    this.messages.push({ kind: WSMsgKind.server, matcher, schema })
   }
 
-  public clientMessage (matcher: MessageMatcher, message?: MessageSchema | MessageHandler, handler?: MessageHandler) {
-    this.messages.push(clientMessage(matcher, message, handler))
+  public clientMessage (matcher: WSMsgMatcher, schema?: MessageSchema | WSMsgHandler, handler?: WSMsgHandler) {
+
+    if (typeof schema === "function") {
+      handler = schema
+      schema = undefined
+    }
+
+    this.messages.push({ kind: WSMsgKind.client, matcher, handler, schema })
   }
 
   public findClientMessage(data: { [key: string]: any }) {
-    return this.findMessage(MessageKind.client, data)
+    return this.findMessage(WSMsgKind.client, data)
   }
 
   public findServerMessage(data: { [key: string]: any }) {
-    return this.findMessage(MessageKind.client, data)
+    return this.findMessage(WSMsgKind.client, data)
   }
 
-  public findMessage(type: MessageKind, data: { [key: string]: any }) {
+  public findMessage(type: WSMsgKind, data: { [key: string]: any }) {
     const messages = this.messages || []
     return messages.find((msg) => {
-      if (!isClientMessage(msg) && type === MessageKind.client) {
+      if (msg.kind !== type) {
         return false
       }
-      const matcher = getMessageMatcher(msg)
-      let fields = Object.keys(matcher).length
+      let fields = Object.keys(msg.matcher).length
 
-      for (const key of Object.keys(matcher)) {
-        if (typeof matcher === "function") {
-          fields -= matcher(data) ? 1 : 0
+      for (const key of Object.keys(msg.matcher)) {
+        if (typeof msg.matcher === "function") {
+          fields -= msg.matcher(data) ? 1 : 0
         } else {
-          fields -= data[key] === matcher[key] ? 1 : 0
+          fields -= data[key] === msg.matcher[key] ? 1 : 0
         }
       }
       return fields === 0

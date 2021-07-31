@@ -1,15 +1,15 @@
 import { IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
-import { Message } from './asyncapi/types'
-import { MockSocket } from './client'
-import { WSChannel, ChannelOptions } from './channel'
-import { ClientContext } from './context'
+import { WSApiMiddleware, WSApiOptions, IClientInjectParams, WSMsgKind } from './types'
 import { IWSAsyncApiParams, WSAsyncApi } from './asyncapi'
-import {
-  WSApiMiddleware, WSApiOptions, noop,
-  IClientInjectParams, isServerMessage, getMessageHandler, 
-} from './types'
+import { WSChannel, ChannelOptions } from './channel'
+import { Message } from './asyncapi/types'
+import { ClientContext } from './context'
+import { MockSocket } from './client'
+
+// tslint:disable-next-line: no-empty
+export const noop = () => {}
 
 export type WSApiPlugin<S> = (wsapi: WSApi<S>) => Promise<void> | void
 
@@ -75,13 +75,13 @@ export class WSApi<S> {
       return this._onError(ctx, "Message not found", event)
     }
 
-    const handler = getMessageHandler(message)
+    const { handler, schema } = message
 
     if (!handler) {
       return this._onError(ctx, `Handler for '${ctx.channel.path}' not implemented`, event)
     }
 
-    if (!ctx.validatePayload(message.payload, event, (msg: string) => this._onError(ctx, msg))) {
+    if (schema && !ctx.validatePayload(schema.payload, event, (msg: string) => this._onError(ctx, msg))) {
       return
     }
 
@@ -107,10 +107,11 @@ export class WSApi<S> {
       const subMessages: Message[] = []
 
       for (const msg of channel.messages) {
-        if (isServerMessage(msg)) {
-          subMessages.push(msg)
+        if (!msg.schema) { continue }
+        if (msg.kind === WSMsgKind.server) {
+          subMessages.push(msg.schema)
         } else {
-          pubMessages.push(msg)
+          pubMessages.push(msg.schema)
         }
       }
 

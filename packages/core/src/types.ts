@@ -3,68 +3,31 @@ import { IncomingHttpHeaders } from 'http'
 import { MessageSchema } from './asyncapi'
 import { ClientContext } from './context'
 
-// tslint:disable-next-line: no-empty
-export const noop = () => {}
+export type WSMsgValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
 
-export type WSApiValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
-
-export interface IWSSerializer {
+export interface ISerializer {
   encode: (data: any) => any
   decode: (data: any) => any
 }
 
 export interface WSApiOptions {
-  serializer?: IWSSerializer
-  validator?: WSApiValidator
+  serializer?: ISerializer
+  validator?: WSMsgValidator
 }
 
-export enum MessageKind {
+export enum WSMsgKind {
   client = 0,
   server = 1
 }
-export type MessageHandler<S = any, T = any> = (ctx: ClientContext<S>, data: T) => void
-export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean)
+export type WSMsgHandler<S = any, T = any> = (ctx: ClientContext<S>, data: T) => void
+export type WSMsgMatcher = { [key: string]: string } | ((data: any) => boolean)
 
-export interface ApiMessageParams {
-  kind: MessageKind
-  matcher: MessageMatcher
-  handler?: MessageHandler
+export interface WSMessage {
+  kind: WSMsgKind
+  matcher: WSMsgMatcher
+  handler?: WSMsgHandler
+  schema?: MessageSchema
 }
-
-const $meta = Symbol("meta")
-export interface ApiMessage extends MessageSchema {
-  [$meta]: ApiMessageParams
-}
-
-export const clientMessage = (matcher: MessageMatcher, message?: MessageSchema | MessageHandler,
-  handler?: MessageHandler): ApiMessage => {
-  if (typeof message === "function") {
-    handler = message
-    message = undefined
-  }
-
-  return {
-    [$meta]: {
-      kind: MessageKind.client,
-      matcher,
-      handler
-    },
-    ...message,
-  }
-}
-
-export const serverMessage = (matcher: MessageMatcher, message?: MessageSchema): ApiMessage => ({
-  [$meta]: {
-    kind: MessageKind.server,
-    matcher
-  },
-  ...message,
-})
-
-export const isClientMessage = (msg: ApiMessage): boolean => msg[$meta].kind === MessageKind.client
-export const isServerMessage = (msg: ApiMessage): boolean => msg[$meta].kind === MessageKind.server
-export const getMessageMatcher = (msg: ApiMessage): MessageMatcher => msg[$meta].matcher
-export const getMessageHandler = (msg: ApiMessage): MessageHandler | undefined => msg[$meta].handler
 
 export type WSApiMiddleware<T> = (ctx: ClientContext<T>) => void | Promise<void>
 
