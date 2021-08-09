@@ -5,7 +5,7 @@ Next generation Websocket framework for nodejs
 
 ## Summary
 Wsapix provides to you:
-- Channel/message based build websocket API approach
+- Channel/message approach for websocket API 
 - Middlewares support
 - Custom schema serialization support
 - Message paylaod validation
