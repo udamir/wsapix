@@ -25,42 +25,71 @@ npm install --save wsapix
 
 ```ts
 import * as http from "http"
-import Ajv from "ajv"
-import { WSApiOptions, WSApi, WSChannel } from "wsapix"
+import { Wsapix } from "wsapix"
+
+const server = new http.Server()
+
+const wsx = new Wsapix({ server })
+
+interface IChatMessage {
+  type: "chat:message"
+  text: string
+}
+
+// handle messages with type chat:message
+wsx.clientMessage({ type: "chat:message" }, (client: Client, data: IChatMessage) => {
+  // data - deserialized by JSON.Parse
+  
+  // JSON.stringify user for send payload 
+  client.send({ type: "echo", text: data.text })
+})
+
+server.listen(port, () => {
+  console.log(`Server listen port ${port}`)
+})
+
+```
+
+## Add auth middleware
+```ts
 
 // define client context state
 interface IClientState {
   userId: string
 }
 
-const wssOptions: WebSocket.ServerOptions = { 
-  // websocket server options
-  server: new http.Server()
-}
-
-const ajv = new Ajv({ strict: false })
-const notepack = requre("notepack.io")
-
-const wsApiOptions: WSApiOptions = {
-  validator: ajv.validate.bind(ajv), // validation engine
-  serializer: notepack // custom serializer
-}
-
-const wsapi = new WSApi<IClientState>(wssParams, wsApiOptions)
+const wsx = new Wsapix<IClientState>({ server })
 
 // connection hook middleware
-wsapi.use((ctx) => {
-  // add authentication
-  // ctx.state.userId = ...
-})
+wsx.use((client: Client) => {
+  // check auth
+  const user = authUser(client.req?.url)
 
-// define channel route
-const v1 = new WSChannel({ 
-  path: "/v1" // channel route
-  // serializer: { encode, decode } - channel serializer
-  // validator: (schema, data, error) => boolean - channel validator
-  // messages: [ ... ] - channel messages
+  // store user id in state 
+  client.state.userId = data.userId
 })
+```
+
+## Add custom serialization
+Default message payload serialization is JSON stringnify/parse. Wsapix support custom serialization:
+
+```ts
+const notepack = require("notepack.io")
+
+const wsx = new Wsapix({ server }, { serializer: notepack })
+```
+
+## Add payload validation
+
+```ts
+import * as http from "http"
+import Ajv from "ajv"
+import { Wsapix } from "wsapix"
+
+
+const ajv = new Ajv({ strict: false })
+
+const wsx = new Wsapix({ server }, { validator: ajv.validate.bind(ajv) })
 
 // define message matcher - fields filter or filter function
 const chatMessageMatcher = { type: "chat:message" } 
@@ -76,17 +105,18 @@ const chatMessageSchema = {
       type: "string",
       const: "chat:message"
     },
-    chatId: {
-      type: "string"
-    },
     text: {
       type: "string"
     }
   },
 }
 
-// define channel client message
-v1.clientMessage(chatMessageMatcher, chatMessageSchema, (ctx, data) => {
+interface IChatMessage {
+  type: "chat:message"
+  text: string
+}
+
+wsx.clientMessage({ type: "chat:message" }, chatMessageSchema, (client: Client, data: IChatMessage) => {
   // message handler
 })
 
@@ -106,22 +136,41 @@ const errorSchema = {
 }
 
 // define channel server message (for validation and documentation)
-v1.serverMessage({ type: "error" }, errorSchema)
+wsx.serverMessage({ type: "error" }, errorSchema)
 
-// add channel to server
-wsapi.route(v1)
-
-wsapi.onError((ctx, error) => {
-  // handle errors, inc request validation errors
-  ctx.channel = ctx.channel || wsapi.channels.get("v1")
-  ctx.send({ type: "error", message: error })
+wsx.onError((client, error) => {
+  // handle errors, incuding request validation errors
+  client.send({ type: "error", message: error })
 })
+```
+
+## Add channels
+```ts
+const v1 = wsx.route("/v1")
+
+v1.use(/* ... */)
+v1.clientMessage(/* ... */)
+v1.serverMessage(/* ... */)
+```
+
+## Add plugin
+```ts
+
+const plugin = (wsx: Wsapix) => {
+  const v2 = wsx.route("/v2")
+
+  v2.clientMessage(/* ... */)
+  v2.serverMessage(/* ... */)  
+}
+
+wsx.register(plugin)
+
 ```
 
 ## Generate AsyncApi schema
 
 ```ts
-const asyncApi = wsapi.asyncapi({
+const asyncApi = wsx.asyncapi({
   info: {
     version: "1.0.0",
     title: "Chat websocket API"
@@ -132,7 +181,7 @@ const asyncApi = wsapi.asyncapi({
 ## Generate html documentation
 
 ```ts
-const html = wsapi.htmlDocTemplate("/asyncapi", "Chat websocket API")
+const html = wsx.htmlDocTemplate("/asyncapi", "Chat websocket API")
 ```
 
 ## Testing
@@ -140,7 +189,7 @@ const html = wsapi.htmlDocTemplate("/asyncapi", "Chat websocket API")
 Wsapix comes with built-in support for fake Websocket client injection:
 
 ```ts
-const ws = await wsapi.inject({ url: "/v1?token=12345" })
+const ws = await wsx.inject({ url: "/v1?token=12345" })
 
 // handle server messages
 ws.onmessage = ({ data }) => {

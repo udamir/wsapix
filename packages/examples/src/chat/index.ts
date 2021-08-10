@@ -1,8 +1,8 @@
 import { userChatSchema, chatReadMessageSchema, chatTypingMessageSchema, chatMessageSchema } from './schemas'
 import { sendReadStatus, sendTypingStatus } from './controllers'
-import { WSChannel } from "wsapix"
+import { WsapixChannel } from "wsapix"
 
-export const channel = new WSChannel({ path: "/" })
+export const channel = new WsapixChannel({ path: "/chat" })
 
 channel.clientMessage({ type: "chat:read"}, {
   $id: "chat:read",
@@ -16,27 +16,6 @@ channel.clientMessage({ type: "chat:typing" }, {
   description: "User start/stop typing in chat",
   payload: chatTypingMessageSchema
 }, sendTypingStatus)
-
-channel.serverMessage({ type: "error" }, {
-  $id: "error",
-  description: "Backend error message",
-  payload: {
-    type: "object",
-    properties: {
-      type: {
-        type: "string",
-        const: "error"
-      },
-      message: {
-        type: "string",
-      },
-      code: {
-        type: "number"
-      }
-    },
-    required: ["type", "message"]
-  },
-})
 
 channel.serverMessage({ type: "chat:add" }, {
   $id: "chat:add",

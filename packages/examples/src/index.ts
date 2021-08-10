@@ -1,6 +1,6 @@
 import * as http from "http"
 import Ajv from "ajv"
-import { WSApi } from "wsapix"
+import { Wsapix } from "wsapix"
 
 import * as chat from "./chat"
 
@@ -35,25 +35,45 @@ const server = new http.Server((req, res) => {
 
 const ajv = new Ajv({ strict: false })
 
-const wsapi = new WSApi<IChatClientContextState>({ server }, {
+const wsapi = new Wsapix<IChatClientContextState>({ server }, {
   validator: ajv.validate.bind(ajv),
   serializer: notepack
 })
 
-wsapi.use((ctx) => {
+wsapi.use((client) => {
   // check auth
-  const [path, query] = (ctx.req?.url || "").split("?")
+  const [path, query] = (client.req?.url || "").split("?")
 
   if (!query || query !== "123") {
-    ctx.send({ type: "error", message: "Wrong token!", code: 401 })
-    ctx.ws.close(4003)
+    client.send({ type: "error", message: "Wrong token!", code: 401 })
+    client.ws.close(4003)
   }
+})
+
+wsapi.serverMessage({ type: "error" }, {
+  $id: "error",
+  description: "Backend error message",
+  payload: {
+    type: "object",
+    properties: {
+      type: {
+        type: "string",
+        const: "error"
+      },
+      message: {
+        type: "string",
+      },
+      code: {
+        type: "number"
+      }
+    },
+    required: ["type", "message"]
+  },
 })
 
 wsapi.route(chat.channel)
 
-wsapi.onError((ctx, error) => {
-  ctx.channel = ctx.channel || wsapi.channels.get("/")
+wsapi.on("error", (ctx, error) => {
   ctx.send({ type: "error", message: error })
   console.log(error)
 })

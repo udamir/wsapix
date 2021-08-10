@@ -1,92 +1,41 @@
 import { IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
-import { WSApiMiddleware, WSApiOptions, IClientInjectParams, WSMsgKind } from './types'
+import { ChannelOptions, IClientInjectParams, MessageKind } from './types'
 import { IWSAsyncApiParams, WSAsyncApi } from './asyncapi'
-import { WSChannel, ChannelOptions } from './channel'
 import { Message } from './asyncapi/types'
-import { ClientContext } from './context'
-import { MockSocket } from './client'
+import { WsapixChannel } from './channel'
+import { MockSocket } from './mock'
 import { html } from './template'
+import { Client } from './client'
 
-// tslint:disable-next-line: no-empty
-export const noop = () => {}
+export type WsapixPlugin<S> = (wsapi: Wsapix<S>) => Promise<void> | void
 
-export type WSApiPlugin<S> = (wsapi: WSApi<S>) => Promise<void> | void
-
-export class WSApi<S> {
+export class Wsapix<S> extends WsapixChannel<S> {
   public wss: WebSocket.Server
-  public channels: Map<string, WSChannel> = new Map()
-  public middlewares: WSApiMiddleware<S>[] = []
-  public options: WSApiOptions
+  public channels: Map<string, WsapixChannel<S>> = new Map()
 
-  private _onError: (ctx: ClientContext<S>, message: string, data?: any) => void = noop
-  private _onClose?: (ctx: ClientContext<S>) => void = noop
-
-  constructor (options: WebSocket.ServerOptions, apiOptions?: WSApiOptions ) {
+  constructor (options: WebSocket.ServerOptions, defaultOptions?: ChannelOptions ) {
+    super(defaultOptions?.path || "*", defaultOptions)
     this.wss = new WebSocket.Server(options)
-    this.options = apiOptions || {}
     this.wss.on("connection", this.onConnected.bind(this))
   }
 
   private async onConnected(ws: WebSocket, req: IncomingMessage) {
     // check if channel exist
-    const channel = this.findChannel(req.url || "/")
-
-    // create context
-    const ctx = new ClientContext<S>(ws, req, channel)
+    const channel = this.findChannel(req.url || "/") || (this.path === req.url || this.path === "*") ? this : null
 
     if (!channel) {
-      this._onError(ctx, "Channel path not found!", req.url)
       return ws.close(4000)
     }
 
-    // execute midllwares
-    for (const middleware of this.middlewares) {
-      try {
-        await middleware(ctx)
-      } catch (error) {
-        this._onError(ctx, "Middleware error", error)
-      }
-      if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
-        return
-      }
-    }
+    // create context
+    const client = await channel.addClient(ws, req)
 
-    ws.on('message', async (data: string) => this.handleChannelMessage(ctx, data))
-    ws.on('close', () => this._onClose && this._onClose(ctx))
-  }
+    if (!client) { return }
 
-  private handleChannelMessage(ctx: ClientContext<S>, data: any) {
-    if (!ctx.channel) {
-      throw new Error(`Cannot handle client message: channel expected`)
-    }
-
-    // decode message
-    let event
-    try {
-      event = ctx.channel.serializer.decode(data)
-    } catch (error) {
-      return this._onError(ctx, "Unexpected message payload", data)
-    }
-
-    const message = ctx.channel.findClientMessage(event)
-
-    if (!message) {
-      return this._onError(ctx, "Message not found", event)
-    }
-
-    const { handler, schema } = message
-
-    if (!handler) {
-      return this._onError(ctx, `Handler for '${ctx.channel.path}' not implemented`, event)
-    }
-
-    if (schema && !ctx.validatePayload(schema.payload, event, (msg: string) => this._onError(ctx, msg))) {
-      return
-    }
-
-    handler(ctx, event)
+    ws.on('message', async (data: string) => channel.emit("message", client, data))
+    ws.on('close', () => channel.deleteClient(client))
   }
 
   public async inject(params: IClientInjectParams) {
@@ -109,7 +58,7 @@ export class WSApi<S> {
 
       for (const msg of channel.messages) {
         if (!msg.schema) { continue }
-        if (msg.kind === WSMsgKind.server) {
+        if (msg.kind === MessageKind.server) {
           subMessages.push(msg.schema)
         } else {
           pubMessages.push(msg.schema)
@@ -127,7 +76,7 @@ export class WSApi<S> {
     return html(asyncApiPath, title)
   }
 
-  public findChannel(url: string): WSChannel | undefined {
+  public findChannel(url: string): WsapixChannel<S> | undefined {
     const [path] = url.split("?")
 
     for (const [channelPath, channel] of this.channels) {
@@ -145,35 +94,33 @@ export class WSApi<S> {
     return this.channels.get("*")
   }
 
-  public use(middleware: WSApiMiddleware<S>) {
-    this.middlewares.push(middleware)
-  }
-
-  public route(options: ChannelOptions | WSChannel): WSChannel {
-    const channel = options instanceof WSChannel ? options : new WSChannel(options)
-    const path = channel.path
-    if (this.channels.has(path)) {
-      throw new Error(`Path '${path}' already exist!`)
+  public route(path: string | WsapixChannel<S> | ChannelOptions, options?: ChannelOptions): WsapixChannel<S> {
+    // create channel
+    const channel = path instanceof WsapixChannel ? path : new WsapixChannel<S>(path, options)
+    const channelPath = channel.path
+    if (channelPath === this.path || this.channels.has(channelPath)) {
+      throw new Error(`Path '${channelPath}' already exist!`)
     }
-    channel._serializer = channel._serializer || this.options.serializer
-    channel.validator = channel.validator || this.options.validator
-    this.channels.set(path, channel)
+
+    // set default channel parameters
+    channel._serializer = channel._serializer || this.serializer
+    channel.validator = channel.validator || this.validator
+    channel.messages.push(...this.messages)
+
+    // forward events
+    channel.on("error", (client: Client<S>, data: any) => this.emit("error", client, data))
+    channel.on("close", (client: Client<S>) => this.emit("close", client))
+
+    this.channels.set(channelPath, channel)
     return channel
   }
 
-  public register(plugin: WSApiPlugin<S>) {
+  public register(plugin: WsapixPlugin<S>) {
     return plugin(this)
-  }
-
-  public onError(handler: (ctx: ClientContext<S>, error: string, data?: any) => void) {
-    this._onError = handler
-  }
-
-  public onClose(handler: (ctx: ClientContext<S>) => void) {
-    this._onClose = handler
   }
 
   public close() {
     this.wss.off("connection", this.onConnected.bind(this))
+    this.wss.close()
   }
 }

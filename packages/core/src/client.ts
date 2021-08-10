@@ -1,110 +1,45 @@
-import { EventEmitter } from 'events'
+import { IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
-import { IClientHandlers } from './types'
+import { WsapixChannel } from "./channel"
 
-export class WebSocketClient extends EventEmitter {
-  /** The connection is not yet open. */
-  static CONNECTING: 0
-  /** The connection is open and ready to communicate. */
-  static OPEN: 1
-  /** The connection is in the process of closing. */
-  static CLOSING: 2
-  /** The connection is closed. */
-  static CLOSED: 3
-
-  public binaryType: "nodebuffer" | "arraybuffer" | "fragments" = "nodebuffer"
-  public bufferedAmount: number = 0
-  public extensions: string = ""
-  public protocol: string = ""
-
-  /** The connection is not yet open. */
-  public CONNECTING: 0 = 0
-  /** The connection is open and ready to communicate. */
-  public OPEN: 1 = 1
-  /** The connection is in the process of closing. */
-  public CLOSING: 2 = 2
-  /** The connection is closed. */
-  public CLOSED: 3 = 3
-
-  /** The current state of the connection */
-  public readyState:
-      | typeof WebSocket.CONNECTING
-      | typeof WebSocket.OPEN
-      | typeof WebSocket.CLOSING
-      | typeof WebSocket.CLOSED
-  public url: string = ""
-
-  public onopen!: (event: WebSocket.OpenEvent) => void
-  public onerror!: (event: WebSocket.ErrorEvent) => void
-  public onclose!: (event: WebSocket.CloseEvent) => void
-  public onmessage!: (event: WebSocket.MessageEvent) => void
-
-  constructor() {
-    super()
-    this.readyState = WebSocket.OPEN
+export class Client<S> {
+  public state: S = {} as S
+  constructor(public ws: WebSocket, public req: IncomingMessage, public channel?: WsapixChannel<S>) {
   }
 
-  public close!: (code?: number, reason?: string) => void
-  public send!: (data: any) => void
-}
-
-export class MockSocket extends WebSocketClient {
-  public client: WebSocketClient
-
-  constructor(handlers: IClientHandlers) {
-    super()
-    this.client = new WebSocketClient()
-    this.readyState = WebSocket.OPEN
-    this.client.onopen = () => handlers.onopen && handlers.onopen()
-    this.client.onerror = (event) => handlers.onerror && handlers.onerror(event.message, event.error)
-    this.client.onclose = (event) => handlers.onclose && handlers.onclose(event.code, event.reason)
-    this.client.onmessage = (event) => handlers.onmessage && handlers.onmessage(event.data)
-
-    this.client.send = (data: any) => {
-      this.emit("message", data)
+  public send(data: any, cb?: (err?: Error) => void) {
+    if (!this.channel) {
+      throw new Error("Cannot send message: channel not defined")
     }
 
-    this.client.close = (code?: number, reason?: string) => {
-      this.client.readyState = WebSocketClient.CLOSING
-      this.readyState = WebSocketClient.CLOSING
-      this.emit("close", code, reason)
-      this.client.readyState = WebSocketClient.CLOSED
-      this.readyState = WebSocketClient.CLOSED
+    if (this.channel.validator) {
+      const message = this.channel.findServerMessage(data)
+
+      if (!message) {
+        const error = new Error("Cannot send message: Message schema not found")
+        if (cb) { return cb(error) } else { throw error }
+      }
+
+      if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
+        if (!cb) { throw new Error("Cannot send message: Payload validation error") }
+      }
     }
 
-    this.send = (data: any) => {
-      this.client.onmessage({ type: "message", data, target: this })
+    // encode message
+    const payload = this.channel.serializer.encode(data)
+    this.ws.send(payload, cb)
+  }
+
+  public validatePayload = (schema: any, payload: any, error?: (msg: string) => void): boolean => {
+    if (this.channel?.validator) {
+      return this.channel.validator(schema, payload, error)
     }
-
-    this.close = (code: number = 0, reason: string = "") => {
-      this.client.readyState = WebSocketClient.CLOSING
-      this.readyState = WebSocketClient.CLOSING
-      this.client.onclose({ type: "close", target: this, code, reason, wasClean: true })
-      this.client.readyState = WebSocketClient.CLOSED
-      this.readyState = WebSocketClient.CLOSED
-    }
-
-    this.client.onopen({ target: this, type: "open" })
+    return true
   }
 
-  public ping(data?: any): void {
-    super.emit("ping", data)
+  close(code?: number, data?: any) {
+    this.ws.close(code, data)
   }
 
-  public pong(data?: any): void {
-    super.emit("pong", data)
-  }
-
-  public terminate(): void {
-    super.emit("close")
-  }
-
-  public addEventListener(method: string, listener: (event?: any) => void): void {
-    super.addListener(method, listener)
-  }
-
-  public removeEventListener(method: string, listener: () => void): void {
-    super.removeListener(method, listener)
-  }
 }
