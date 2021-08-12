@@ -96,10 +96,6 @@ const ajv = new Ajv({ strict: false })
 
 const wsx = Wsapix.WS({ server }, { validator: ajv.validate.bind(ajv) })
 
-// define message matcher - fields filter or filter function
-const chatMessageMatcher = { type: "chat:message" } 
-// const chatMessageMatcher = (data) => data.type === "chat:message"
-
 // define message schema (for validation and documentation)
 const chatMessageSchema = { 
   $id: "chat:message", // id for $ref
