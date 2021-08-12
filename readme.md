@@ -41,7 +41,7 @@ interface IChatMessage {
   text: string
 }
 
-// handle messages with type chat:message
+// handle messages { type: "chat:message", ... }
 wsx.clientMessage({ type: "chat:message" }, (client: Client, data: IChatMessage) => {
   // data - deserialized by JSON.Parse
   
