@@ -35,18 +35,16 @@ const server = new http.Server((req, res) => {
 
 const ajv = new Ajv({ strict: false })
 
-const wsapi = new Wsapix<IChatClientContextState>({ server }, {
+const wsapi = Wsapix.WS<IChatClientContextState>({ server }, {
   validator: ajv.validate.bind(ajv),
   serializer: notepack
 })
 
 wsapi.use((client) => {
   // check auth
-  const [path, query] = (client.req?.url || "").split("?")
-
-  if (!query || query !== "123") {
+  if (!client.query || client.query !== "123") {
     client.send({ type: "error", message: "Wrong token!", code: 401 })
-    client.ws.close(4003)
+    client.terminate(4003)
   }
 })
 

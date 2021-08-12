@@ -6,10 +6,10 @@ Next generation Websocket framework for nodejs
 ## Summary
 Wsapix provides to you:
 - Channel/message approach for websocket API 
+- uWebsockets.js engine support 
 - Middlewares support
 - Custom schema serialization support
 - Message paylaod validation
-- Fake websocket client injection support
 - AsyncAPI specification generation
 - Typescript syntax support out of the box
 
@@ -28,8 +28,13 @@ import * as http from "http"
 import { Wsapix } from "wsapix"
 
 const server = new http.Server()
+const wsx = Wsapix.WS({ server })
 
-const wsx = new Wsapix({ server })
+// uWebSockets.js supported
+// import uWebSockets from "uWebsockets.js"
+//
+// const server = uWebSockets.App()
+// const wsx = Wsapix.uWS({ server })
 
 interface IChatMessage {
   type: "chat:message"
@@ -58,7 +63,7 @@ interface IClientState {
   userId: string
 }
 
-const wsx = new Wsapix<IClientState>({ server })
+const wsx = Wsapix.WS<IClientState>({ server })
 
 // connection hook middleware
 wsx.use((client: Client) => {
@@ -76,7 +81,7 @@ Default message payload serialization is JSON stringnify/parse. Wsapix support c
 ```ts
 const notepack = require("notepack.io")
 
-const wsx = new Wsapix({ server }, { serializer: notepack })
+const wsx = Wsapix.WS({ server }, { serializer: notepack })
 ```
 
 ## Add payload validation
@@ -89,7 +94,7 @@ import { Wsapix } from "wsapix"
 
 const ajv = new Ajv({ strict: false })
 
-const wsx = new Wsapix({ server }, { validator: ajv.validate.bind(ajv) })
+const wsx = Wsapix.WS({ server }, { validator: ajv.validate.bind(ajv) })
 
 // define message matcher - fields filter or filter function
 const chatMessageMatcher = { type: "chat:message" } 
@@ -183,31 +188,5 @@ const asyncApi = wsx.asyncapi({
 ```ts
 const html = wsx.htmlDocTemplate("/asyncapi", "Chat websocket API")
 ```
-
-## Testing
-
-Wsapix comes with built-in support for fake Websocket client injection:
-
-```ts
-const ws = await wsx.inject({ url: "/v1?token=12345" })
-
-// handle server messages
-ws.onmessage = ({ data }) => {
-  // decode message from server
-  const message = notepack.decode(data)
-  
-  // handle server message
-  if (message.type === "error") {
-    // ...
-  }
-}
-
-// encode and send message to injected client
-ws.send(notepack.encode({ type: "chat:message", chatId, text: "Hello" }))
-
-// close connection
-ws.close()
-```
-
 # License
 MIT

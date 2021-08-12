@@ -67,6 +67,6 @@
     "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
   },
   "include": [
-    "./packages/**/*", "./tests/**/*", "temp/transport" ],
+    "./packages/**/*", "./tests/**/*", "temp/transport", "temp/mock.ts" ],
   "exclude": ["node_modules", "dist"]
 }

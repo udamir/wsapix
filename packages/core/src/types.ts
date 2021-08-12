@@ -1,7 +1,8 @@
 import { IncomingHttpHeaders } from 'http'
 
 import { MessageSchema } from './asyncapi'
-import { Client } from './client'
+import { WsapixChannel } from './channel'
+import { Client } from './transport'
 
 export type MessageValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
 
@@ -30,6 +31,8 @@ export interface WsapixMessage {
   handler?: MessageHandler
   schema?: MessageSchema
 }
+
+export type WsapixClient<S = any> = Client<S> & { channel?: WsapixChannel<S> }
 
 export type WsapixMiddleware<T> = (ctx: Client<T>) => void | Promise<void>
 

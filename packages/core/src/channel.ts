@@ -1,24 +1,29 @@
 import { EventEmitter } from 'events'
-import { IncomingMessage } from 'http'
-import WebSocket from 'ws'
 
 import {
-  WsapixMessage, ISerializer, MessageHandler, MessageKind,
-  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware
+  WsapixMessage, WsapixClient, ISerializer, MessageHandler, MessageKind,
+  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware, 
 } from './types'
 import { MessageSchema } from './asyncapi'
-import { Client } from './client'
+import { Client } from './transport'
 
 // tslint:disable-next-line: no-empty
 export const noop = () => {}
 
-export class WsapixChannel<S = any> extends EventEmitter {
-  public middlewares: WsapixMiddleware<S>[] = []
+interface WsapixChannelEvents<S> {
+  on(event: "connect", listener: (client: WsapixClient<S>) => void): void
+  on(event: "disconnect", listener: (client: WsapixClient<S>, code?: number, data?: any) => void): void
+  on(event: "error", listener: (client: WsapixClient<S>, message: string, data?: any) => void): void
+}
+
+export class WsapixChannel<S = any> extends EventEmitter implements WsapixChannelEvents<S> {
+  private middlewares: WsapixMiddleware<S>[] = []
   public clients: Set<Client<S>> = new Set()
   public messages: WsapixMessage[] = []
   public path: string
-  public _serializer: ISerializer | undefined
-  public validator: MessageValidator | undefined
+  public validator?: MessageValidator
+
+  public _serializer?: ISerializer
 
   public get serializer(): ISerializer {
     return this._serializer || {
@@ -33,21 +38,17 @@ export class WsapixChannel<S = any> extends EventEmitter {
       options = path
       path = path.path
     }
-    this.path = options?.path || "/"
+    this.path = path || "/"
     this.validator = options?.validator
     this.messages = options?.messages || []
     this._serializer = options?.serializer
-
-    this.on("message", this.handleMessage.bind(this))
   }
 
   public use(middleware: WsapixMiddleware<S>) {
     this.middlewares.push(middleware)
   }
 
-  public async addClient(ws: WebSocket, req: IncomingMessage): Promise<Client<S> | undefined> {
-    const client = new Client(ws, req, this)
-
+  protected async onConnect(client: WsapixClient<S>) {
     // execute midllwares
     for (const middleware of this.middlewares) {
       try {
@@ -55,18 +56,71 @@ export class WsapixChannel<S = any> extends EventEmitter {
       } catch (error) {
         this.emit("error", client, "Middleware error", error)
       }
-      if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
+      if (client.status === "disconnecting" || client.status === "disconnected") {
         return
       }
     }
 
+    const _send = client.send.bind(client)
+
+    client.send = (data: any, cb?: (error?: Error) => void) => {
+      if (this.validator) {
+        const message = this.findServerMessage(data)
+  
+        if (!message) {
+          const error = new Error("Cannot send message: Message schema not found")
+          if (cb) { return cb(error) } else { throw error }
+        }
+  
+        if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
+          if (!cb) { throw new Error("Cannot send message: Payload validation error") }
+        }
+      }
+  
+      // encode message
+      const payload = this.serializer.encode(data)
+      _send(payload, cb)
+    }
+
     this.clients.add(client)
-    return client
+    client.channel = this
+    this.emit("connect", client)
   }
 
-  public deleteClient(client: Client<S>) {
+  protected onMessage(client: WsapixClient<S>, data: any) {
+    // decode message
+    let event
+    try {
+      event = this.serializer.decode(data)
+    } catch (error) {
+      this.emit("error", client, "Unexpected message payload", data)
+      return 
+    }
+
+    const message = this.findClientMessage(event)
+
+    if (!message) {
+      this.emit("error", client, "Message not found", event)
+      return 
+    }
+
+    const { handler, schema } = message
+
+    if (!handler) {
+      this.emit("error", client, `Handler for '${this.path}' not implemented`, event)
+      return 
+    }
+
+    if (schema && !this.validatePayload(schema.payload, event, (msg: string) => this.emit("error", client, msg))) {
+      return
+    }
+
+    handler(client, event)
+  }
+
+  protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {
     this.clients.delete(client)
-    this.emit("close", client)
+    this.emit("disconnect", client, code, data)
   }
 
   public serverMessage (matcher: MessageMatcher, schema?: MessageSchema) {
@@ -91,7 +145,23 @@ export class WsapixChannel<S = any> extends EventEmitter {
     return this.findMessage(MessageKind.client, data)
   }
 
-  public findMessage(type: MessageKind, data: { [key: string]: any }) {
+  protected inherit(channel: WsapixChannel<S>) {
+    // set default channel parameters
+    this._serializer = this._serializer || channel.serializer
+    this.validator = this.validator || channel.validator
+
+    // add middlwares and messages
+    if (channel.path === "*") {
+      this.middlewares = [ ...channel.middlewares, ...this.middlewares ]
+      this.messages.push(...channel.messages)
+    }
+
+    // forward events
+    this.on("error", (client: Client<S>, data: any) => channel.emit("error", client, data))
+    this.on("close", (client: Client<S>) => channel.emit("close", client))
+  }
+
+  private findMessage(type: MessageKind, data: { [key: string]: any }) {
     const messages = this.messages || []
     return messages.find((msg) => {
       if (msg.kind !== type) {
@@ -110,31 +180,10 @@ export class WsapixChannel<S = any> extends EventEmitter {
     })
   }
 
-  private handleMessage(client: Client<S>, data: any) {
-    // decode message
-    let event
-    try {
-      event = this.serializer.decode(data)
-    } catch (error) {
-      return this.emit("error", client, "Unexpected message payload", data)
+  protected validatePayload = (schema: any, payload: any, error?: (msg: string) => void): boolean => {
+    if (this.validator) {
+      return this.validator(schema, payload, error)
     }
-
-    const message = this.findClientMessage(event)
-
-    if (!message) {
-      return this.emit("error", client, "Message not found", event)
-    }
-
-    const { handler, schema } = message
-
-    if (!handler) {
-      return this.emit("error", client, `Handler for '${this.path}' not implemented`, event)
-    }
-
-    if (schema && !client.validatePayload(schema.payload, event, (msg: string) => this.emit("error", client, msg))) {
-      return
-    }
-
-    handler(client, event)
+    return true
   }
 }

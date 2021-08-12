@@ -8,7 +8,7 @@
     "build": "lerna run build",
     "clean": "lerna clean",
     "boot": "lerna bootstrap",
-    "test": "lerna run test --stream",
+    "test": "jest",
     "example": "lerna run start --scope @wsapix/examples --stream",
     "graph": "lerna list --graph",
     "bump": "lerna version prerelease --force-publish --no-push --no-git-tag-version",
@@ -20,7 +20,27 @@
     "postinstall": "npm run boot"
   },
   "devDependencies": {
+    "@types/jest": "^26.0.15",
+    "@types/node": "^16.4.3",
+    "@types/ws": "^7.4.7",
     "lerna": "^4.0.0",
-    "typescript": "^4.3.5"
+    "ts-node": "^10.2.0",
+    "tslint": "^6.1.3",
+    "typescript": "^4.3.5",
+    "ws": "^8.1.0",
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v19.3.0",
+    "jest": "^26.6.3",
+    "ts-jest": "^26.4.4"
+  },
+  "jest": {
+    "transform": {
+      ".(ts|tsx)": "ts-jest"
+    },
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ]
   }
 }

@@ -1,53 +1,65 @@
-import { IncomingMessage } from 'http'
-import WebSocket from 'ws'
+import type { TemplatedApp } from 'uWebSockets.js'
+import type { ServerOptions } from 'ws'
 
-import { ChannelOptions, IClientInjectParams, MessageKind } from './types'
-import { IWSAsyncApiParams, WSAsyncApi } from './asyncapi'
-import { Message } from './asyncapi/types'
+import { Transport, WebsocketTransport, WebsocketOptions, uWebsocketTransport } from './transport'
+import { ChannelOptions, MessageKind, WsapixClient } from './types'
+import { IAsyncApiBuilderParams, AsyncApiBuilder, Message } from './asyncapi'
 import { WsapixChannel } from './channel'
-import { MockSocket } from './mock'
 import { html } from './template'
-import { Client } from './client'
 
 export type WsapixPlugin<S> = (wsapi: Wsapix<S>) => Promise<void> | void
 
-export class Wsapix<S> extends WsapixChannel<S> {
-  public wss: WebSocket.Server
+export class Wsapix<S = any> extends WsapixChannel<S> {
   public channels: Map<string, WsapixChannel<S>> = new Map()
 
-  constructor (options: WebSocket.ServerOptions, defaultOptions?: ChannelOptions ) {
-    super(defaultOptions?.path || "*", defaultOptions)
-    this.wss = new WebSocket.Server(options)
-    this.wss.on("connection", this.onConnected.bind(this))
+  static WS<S = any>(options: ServerOptions, defaultOptions?: ChannelOptions) {
+    const transport = new WebsocketTransport<S>(options)
+    return new Wsapix<S>(transport, defaultOptions)
   }
 
-  private async onConnected(ws: WebSocket, req: IncomingMessage) {
+  static uWS<S = any>(options: { server: TemplatedApp } & WebsocketOptions, defaultOptions?: ChannelOptions) {
+    const transport = new uWebsocketTransport<S>(options)
+    return new Wsapix<S>(transport, defaultOptions)
+  }
+
+  constructor (public transport:  Transport<S>, defaultOptions?: ChannelOptions ) {
+    super(defaultOptions?.path || "*", defaultOptions)
+
+    this.transport.onConnection(this.onConnected.bind(this))
+    this.transport.onMessage(this.onMessage.bind(this))
+    this.transport.onDisconnect(this.onDisconnect.bind(this))
+  }
+
+  protected async onConnected(client: WsapixClient<S>) {
     // check if channel exist
-    const channel = this.findChannel(req.url || "/") || (this.path === req.url || this.path === "*") ? this : null
+    const channel = this.findChannel(client.path || "/")
 
     if (!channel) {
-      return ws.close(4000)
+      return client.terminate(4000)
     }
 
-    // create context
-    const client = await channel.addClient(ws, req)
-
-    if (!client) { return }
-
-    ws.on('message', async (data: string) => channel.emit("message", client, data))
-    ws.on('close', () => channel.deleteClient(client))
+    // handle client connection to channel
+    super.onConnect.call(channel, client)
   }
 
-  public async inject(params: IClientInjectParams) {
-    const { url, headers, ...handlers } = params
-    const socket = new MockSocket(handlers)
-    const req = { url, headers } as IncomingMessage
-    await this.onConnected(socket, req)
-    return socket.client
+  protected onMessage(client: WsapixClient<S>, data: any) {
+    if (!client.channel) {
+      throw new Error("Cannot handle client message - channel undefined")
+    }
+
+    super.onMessage.call(client.channel, client, data)
   }
 
-  public asyncapi(params: IWSAsyncApiParams): string {
-    const asyncapi = new WSAsyncApi(params)
+  protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {
+    if (!client.channel) {
+      throw new Error("Cannot handle client dicsonnect - channel undefined")
+    }
+
+    super.onDisconnect.call(client.channel, client, code, data)
+  }
+
+  public asyncapi(params: IAsyncApiBuilderParams): string {
+    const asyncapi = new AsyncApiBuilder(params)
     for (const [ path, channel ] of this.channels) {
       // parse path params
       const pathParams = {}
@@ -91,7 +103,7 @@ export class Wsapix<S> extends WsapixChannel<S> {
         }
     }
 
-    return this.channels.get("*")
+    return (this.path === url || this.path === "*") ? this : this.channels.get("*")
   }
 
   public route(path: string | WsapixChannel<S> | ChannelOptions, options?: ChannelOptions): WsapixChannel<S> {
@@ -102,14 +114,7 @@ export class Wsapix<S> extends WsapixChannel<S> {
       throw new Error(`Path '${channelPath}' already exist!`)
     }
 
-    // set default channel parameters
-    channel._serializer = channel._serializer || this.serializer
-    channel.validator = channel.validator || this.validator
-    channel.messages.push(...this.messages)
-
-    // forward events
-    channel.on("error", (client: Client<S>, data: any) => this.emit("error", client, data))
-    channel.on("close", (client: Client<S>) => this.emit("close", client))
+    this.inherit.call(channel, this)
 
     this.channels.set(channelPath, channel)
     return channel
@@ -119,8 +124,7 @@ export class Wsapix<S> extends WsapixChannel<S> {
     return plugin(this)
   }
 
-  public close() {
-    this.wss.off("connection", this.onConnected.bind(this))
-    this.wss.close()
+  public close(cb?: (error?: Error) => void) {
+    return this.transport.close(cb)
   }
 }
