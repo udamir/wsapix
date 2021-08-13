@@ -94,6 +94,15 @@ import { Wsapix } from "wsapix"
 
 const ajv = new Ajv({ strict: false })
 
+const validator = (schema: any, data: any, error?: (msg: string) => void) => {
+  const validate = ajv.compile(schema)
+  const valid = validate(data)
+  if (!valid && validate.errors) { 
+    error && error(validate.errors.map(({ message }) => message).join(", ")) 
+  }
+  return valid
+}
+
 const wsx = Wsapix.WS({ server }, { validator: ajv.validate.bind(ajv) })
 
 // define message schema (for validation and documentation)
