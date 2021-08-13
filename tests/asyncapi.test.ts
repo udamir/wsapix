@@ -143,8 +143,7 @@ describe("Validation test", () => {
     client1.send(msg4, (error) => {
       expect(error).not.toBeUndefined()
       done()
-    })
-
+    }).catch(() => {})
   })
 
   test("AsyncApi schema should genereted", () => {
