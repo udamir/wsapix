@@ -74,7 +74,7 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
         }
   
         if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
-          if (!cb) { throw new Error("Cannot send message: Payload validation error") }
+          return Promise.reject(new Error("Cannot send message: Payload validation error"))
         }
       }
   
@@ -163,21 +163,20 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
   }
 
   private findMessage(type: MessageKind, data: { [key: string]: any }) {
-    const messages = this.messages || []
-    return messages.find((msg) => {
+    return this.messages.find((msg) => {
       if (msg.kind !== type) {
         return false
       }
-      let fields = Object.keys(msg.matcher).length
 
-      for (const key of Object.keys(msg.matcher)) {
-        if (typeof msg.matcher === "function") {
-          fields -= msg.matcher(data) ? 1 : 0
-        } else {
+      if (typeof msg.matcher === "function") {
+        return msg.matcher(data)
+      } else {
+        let fields = Object.keys(msg.matcher).length
+        for (const key of Object.keys(msg.matcher)) {
           fields -= data[key] === msg.matcher[key] ? 1 : 0
         }
+        return fields === 0
       }
-      return fields === 0
     })
   }
 

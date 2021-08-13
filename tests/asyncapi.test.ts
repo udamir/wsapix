@@ -115,7 +115,7 @@ describe("Validation test", () => {
     
   test("Server message should be validated", (done) => {
     const msg3 = { type: "chat:clean", chatId: "123" }
-    wsx.serverMessage({ type: "chat:clean" }, {
+    wsx.serverMessage(({ type }) => type === "chat:clean", {
       $id: "chat:clean",
       description: "Chat history cleaned",
       payload: {
@@ -135,6 +135,29 @@ describe("Validation test", () => {
     }
 
     client1.send(msg3)
+  })
+
+  test("Unknown message should raise error", (done) => {
+    const msg4 = { type: "chat:delete", chatId: "123" }
+  
+    client1.send(msg4, (error) => {
+      expect(error).not.toBeUndefined()
+      done()
+    })
+
+  })
+
+  test("AsyncApi schema should genereted", () => {
+    const info = { version: "1.0", title: "test" }
+
+    const api = wsx.asyncapi({ info })
+    const parsed = JSON.parse(api)
+    expect(parsed.info).toMatchObject(info)
+  })
+
+  test("Documentation template should genereted", () => {
+    const html = wsx.htmlDocTemplate("/test")
+    expect(html).not.toBeUndefined()
   })
 
 })

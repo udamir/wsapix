@@ -57,7 +57,8 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
 
   public asyncapi(params: IAsyncApiBuilderParams): string {
     const asyncapi = new AsyncApiBuilder(params)
-    for (const [ path, channel ] of this.channels) {
+    const channels = [ this, ...this.channels.values() ]
+    for (const channel of channels) {
       // parse path params
       const pathParams = {}
 
@@ -75,7 +76,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
       }
 
       // add channel
-      asyncapi.addChannel(path, pubMessages, subMessages, pathParams)
+      asyncapi.addChannel(channel.path, pubMessages, subMessages, pathParams)
     }
 
     return asyncapi.generate()
