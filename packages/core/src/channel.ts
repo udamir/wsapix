@@ -8,7 +8,7 @@ import { MessageSchema } from './asyncapi'
 import { Client } from './transport'
 
 // tslint:disable-next-line: no-empty
-export const noop = () => {}
+const noop = () => {}
 
 interface WsapixChannelEvents<S> {
   on(event: "connect", listener: (client: WsapixClient<S>) => void): void
@@ -64,12 +64,13 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
     const _send = client.send.bind(client)
 
     client.send = (data: any, cb?: (error?: Error) => void) => {
-      if (this.validator) {
+      if (this.validator !== undefined) {
         const message = this.findServerMessage(data)
   
         if (!message) {
           const error = new Error("Cannot send message: Message schema not found")
-          if (cb) { return cb(error) } else { throw error }
+          cb && cb(error)
+          return Promise.reject(error)
         }
   
         if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
@@ -79,7 +80,7 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
   
       // encode message
       const payload = this.serializer.encode(data)
-      _send(payload, cb)
+      return _send(payload, cb)
     }
 
     this.clients.add(client)
@@ -89,7 +90,7 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
 
   protected onMessage(client: WsapixClient<S>, data: any) {
     // decode message
-    let event
+    let event: any
     try {
       event = this.serializer.decode(data)
     } catch (error) {
@@ -107,13 +108,13 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
     const { handler, schema } = message
 
     if (!handler) {
-      this.emit("error", client, `Handler for '${this.path}' not implemented`, event)
+      this.emit("error", client, `Handler not implemented`, event)
       return 
     }
 
-    if (schema && !this.validatePayload(schema.payload, event, (msg: string) => this.emit("error", client, msg))) {
-      return
-    }
+    if (schema && !this.validatePayload(schema.payload, event, (msg: string) => {
+      this.emit("error", client, msg, event)
+    })) { return }
 
     handler(client, event)
   }
@@ -142,7 +143,7 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
   }
 
   public findServerMessage(data: { [key: string]: any }) {
-    return this.findMessage(MessageKind.client, data)
+    return this.findMessage(MessageKind.server, data)
   }
 
   protected inherit(channel: WsapixChannel<S>) {
@@ -182,7 +183,9 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
 
   protected validatePayload = (schema: any, payload: any, error?: (msg: string) => void): boolean => {
     if (this.validator) {
-      return this.validator(schema, payload, error)
+      return this.validator(schema, payload, (msg) => {
+        error!(msg)
+      })
     }
     return true
   }

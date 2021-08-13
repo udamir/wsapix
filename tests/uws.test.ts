@@ -7,28 +7,31 @@ const port = 3001
 let wsx: Wsapix
 let server: TemplatedApp & { listener?: any }
 
-beforeAll(() => {
+const initEnv = () => {
   server = App()
   wsx = Wsapix.uWS({ server })
 
   server.listen(port, (listener) => {
     server.listener = listener
   })
-})
+}
 
-afterAll(async (done) => {
-  await wsx.close()
+const closeEnv = async (done: any) => {
+  await wsx.close(()=>{})
   if (server.listener) {
     us_listen_socket_close(server.listener)
   }
   done()
-})
+}
 
-describe("Server", () => {
-  let ws: WebSocket
+describe("uWebsockets transport test 1", () => {
+  beforeAll(initEnv)
+  afterAll(closeEnv)
+
+  let ws1: WebSocket
   let client1: WsapixClient
 
-  test(`uWS client should connect to server`, (done) => {
+  test(`ws1 client should connect to server`, (done) => {
 
     wsx.on("connect", (client: WsapixClient) => {
       client1 = client
@@ -36,7 +39,7 @@ describe("Server", () => {
       expect(client.status).toBe("connected")
       done()
     })
-    ws = new WebSocket(`ws://localhost:${port}`)
+    ws1 = new WebSocket(`ws://localhost:${port}`)
   })
 
   test("uWS server should get message", (done) => {
@@ -46,19 +49,19 @@ describe("Server", () => {
       expect(client).toBe(client1)
       done()
     })
-    ws.onopen = (() => {
-      ws.send(JSON.stringify({ type: "text", text: "test"}))
+    ws1.onopen = (() => {
+      ws1.send(JSON.stringify({ type: "text", text: "test"}))
     })
   })
 
-  test("WS client should get message", (done) => {
+  test("ws1 client should get message", (done) => {
     const msg = { type: "text", text: "test 2" }
-    ws.onmessage = (event: WebSocket.MessageEvent) => {
+    ws1.onmessage = (event: WebSocket.MessageEvent) => {
       const message = JSON.parse(event.data as string)
       expect(message).toMatchObject(msg)
       done()
     }
-    client1.send(msg)
+    client1.send(msg, (err) => expect(err).toBeUndefined())
   })
 
   test("uWS server should get disconnect", (done) => {
@@ -69,7 +72,41 @@ describe("Server", () => {
       expect(client.status).toBe("disconnecting")
       done()
     })
-    ws.close(4001, "test")
+    ws1.close(4001, "test")
   })
 
+  test("uWS server should have 0 clients", () => {
+    expect(wsx.clients.size).toBe(0)    
+  })
+})
+
+describe("uWebsockets transport test 2", () => {
+  beforeAll(initEnv)
+  afterAll(closeEnv)
+
+  let ws2: WebSocket
+  let client2: WsapixClient
+
+  test(`ws2 client should connect to server to path with query and headers`, (done) => {
+    wsx.on("connect", (client: WsapixClient) => {
+      client2 = client
+      expect(wsx.clients.has(client)).toBe(true)
+      expect(client.path).toBe("/test")
+      expect(client.query).toBe("param=1")
+      expect(client.headers).toMatchObject({ "test-header": "1234" })
+      expect(client.status).toBe("connected")
+      done()
+    })
+    ws2 = new WebSocket(`ws://localhost:${port}/test?param=1`, { headers: { "test-header": "1234" } })
+  })
+
+  test("ws2 client should connection termination from server", (done) => {
+    ws2.onclose = (event: any) => {
+      expect(event.code).toBe(4001)
+      expect(event.reason).toBe("test")
+      expect(ws2.readyState).toBe(WebSocket.CLOSED)
+      done()
+    }
+    client2.terminate(4001, "test")
+  })
 })

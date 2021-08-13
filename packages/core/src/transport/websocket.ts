@@ -15,7 +15,7 @@ export class WebsocketClient<S> extends Client<S> {
 
   constructor (public ws: WebSocket, req: IncomingMessage) {
     super()
-    const [ path, query ] = (req.url || ws.url || "").split("?")
+    const [ path, query ] = (req.url || "").split("?")
     this.path = path
     this.query = query
     this.headers = req.headers
@@ -51,7 +51,6 @@ export class WebsocketTransport<S> extends Transport<S> {
       this.handlers.connection(client)
     }) 
 
-    this.wss.on("close", this.handlers.close.bind(this))
     this.wss.on("error", this.handlers.error.bind(this))
   }
 

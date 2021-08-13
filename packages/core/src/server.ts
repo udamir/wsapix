@@ -28,11 +28,12 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
     this.transport.onConnection(this.onConnected.bind(this))
     this.transport.onMessage(this.onMessage.bind(this))
     this.transport.onDisconnect(this.onDisconnect.bind(this))
+    this.transport.onError((error: Error) => this.emit("error", error?.message || ""))
   }
 
   protected async onConnected(client: WsapixClient<S>) {
     // check if channel exist
-    const channel = this.findChannel(client.path || "/")
+    const channel = this.findChannel(client.path)
 
     if (!channel) {
       return client.terminate(4000)
@@ -43,17 +44,13 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
   }
 
   protected onMessage(client: WsapixClient<S>, data: any) {
-    if (!client.channel) {
-      throw new Error("Cannot handle client message - channel undefined")
-    }
+    if (!client.channel) { return }
 
     super.onMessage.call(client.channel, client, data)
   }
 
   protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {
-    if (!client.channel) {
-      throw new Error("Cannot handle client dicsonnect - channel undefined")
-    }
+    if (!client.channel) { return }
 
     super.onDisconnect.call(client.channel, client, code, data)
   }
@@ -88,7 +85,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
     return html(asyncApiPath, title)
   }
 
-  public findChannel(url: string): WsapixChannel<S> | undefined {
+  public findChannel(url: string = "/"): WsapixChannel<S> | undefined {
     const [path] = url.split("?")
 
     for (const [channelPath, channel] of this.channels) {

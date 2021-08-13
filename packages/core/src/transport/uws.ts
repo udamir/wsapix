@@ -19,31 +19,17 @@ export class uWebSocketClient<S> extends Client<S> {
 
   public _send(data: any, cb?: (error?: Error) => void): Promise<void> {
     this.ws.send(data, false, false);
-    cb && cb()
-    return Promise.resolve()
+    return Promise.resolve(cb && cb())
   }
 
   public _terminate(code?: number, data?: string) {
-    if (code !== undefined) {
-      this.ws.end(code, data);
-
-    } else {
-      this.ws.close();
-    }
+    this.ws.end(code, data)
   }
 }
 
 export class uWebsocketTransport<S> extends Transport<S> {
   public app: TemplatedApp
   public clients: WeakMap<WebSocket, uWebSocketClient<S>> = new WeakMap()
-
-  public handlers = {
-    connection: (client: Client<S>) => {},
-    disconnect: (client: Client<S>, code?: number, data?: any) => {},
-    message: (client: Client<S>, data: any) => {},
-    error: (error: Error) => {},
-    close: () => {}
-  }
 
   constructor(options: WebsocketOptions & { server: TemplatedApp }) {
     super()
@@ -82,34 +68,28 @@ export class uWebsocketTransport<S> extends Transport<S> {
       open: async (ws: WebSocket) => {
         const client = new uWebSocketClient<S>(ws)
         this.clients.set(ws, client)
-
-        if (!client) { return }
         client.status = "connected"
         this.handlers.connection(client)
       },
 
       close: (ws: WebSocket, code: number, message: ArrayBuffer) => {
-        const client = this.clients.get(ws)
-
-        if (!client) { return }
+        const client = this.clients.get(ws)!
 
         client.status = "disconnecting"
         this.handlers.disconnect(client, code, Buffer.from(message.slice(0)).toString())
         client.status = "disconnected"
+      
       },
 
       message: (ws: WebSocket, message: ArrayBuffer, isBinary: boolean) => {
-        const client = this.clients.get(ws)
-
-        if (!client) { return }
+        const client = this.clients.get(ws)!
 
         this.handlers.message(client, Buffer.from(message.slice(0)).toString())
       },
     })
   }
 
-  public close(cb: (error?: Error) => void): Promise<void> {
-    cb && cb()
-    return Promise.resolve()
+  public close(cb?: (error?: Error) => void): Promise<void> {
+    return Promise.resolve(cb && cb())
   }
 }

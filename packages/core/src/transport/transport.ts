@@ -1,35 +1,21 @@
 export type ClientStatus = "connecting" | "connected" | "disconnecting" | "disconnected"
 
+// tslint:disable-next-line: no-empty
+const noop = () => {}
+
 export abstract class Client<S = any> {
   public state!: S
   public path?: string
   public query?: string
   public headers: { [key: string]: string | string[] | undefined } = {}
 
-  private _msgQueue: any[] = []
-  private _status: ClientStatus  = "connecting"
-
-  get status(): ClientStatus {
-    return this._status
-  }
-
-  set status(status: ClientStatus) {
-    this._status = status
-    if (status === "connected") {
-      this._msgQueue.forEach((data) => this._send(data))
-      this._msgQueue = []
-    }
-  }
+  public status: ClientStatus  = "connecting"
 
   public send(data: any, cb?: (error?: Error) => void) {
-    if (this.status === "connecting") {
-      this._msgQueue.push(data)
-    } else {
-      this._send(data, cb)
-    }
+    return this._send(data, cb)
   }
 
-  public terminate(code?: number, data?: any) {
+  public terminate(code?: number, data?: any): void {
     this.status = "disconnecting"
     this._terminate(code, data)
   }
@@ -39,12 +25,11 @@ export abstract class Client<S = any> {
 }
 
 export abstract class Transport<S = any> {
-  protected handlers = {
-    connection: (client: Client<S>) => {},
-    disconnect: (client: Client<S>, code?: number, data?: any) => {},
-    message: (client: Client<S>, data: any) => {},
-    error: (error: Error) => {},
-    close: () => {}
+  protected handlers: any = {
+    connection: noop,
+    disconnect: noop,
+    message: noop,
+    error: noop,
   }
 
   public onConnection(cb: (client: Client<S>) => void): void {
@@ -63,8 +48,5 @@ export abstract class Transport<S = any> {
     this.handlers.error = cb
   }
 
-  public onClose(cb: () => void): void {
-    this.handlers.close = cb
-  }
   public abstract close(cb?: (error?: Error) => void): Promise<void>
 }
