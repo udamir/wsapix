@@ -1,7 +1,7 @@
 import { IncomingMessage } from 'http'
 import WebSocket from 'ws'
 
-import { Client, Transport } from "./transport"
+import { Client, ClientStatus, Transport } from "./transport"
 
 const promiseCallback = (resolve: (value?: any) => void, reject: (err?: any) => void, cb?: (error?: Error) => void) => {
   return (error?: Error) => {
@@ -11,7 +11,7 @@ const promiseCallback = (resolve: (value?: any) => void, reject: (err?: any) => 
   }
 }
 
-export class WebsocketClient<S> extends Client<S> {
+export class WebsocketClient extends Client {
 
   constructor (public ws: WebSocket, req: IncomingMessage) {
     super()
@@ -32,22 +32,22 @@ export class WebsocketClient<S> extends Client<S> {
   }
 }
 
-export class WebsocketTransport<S> extends Transport<S> {
+export class WebsocketTransport extends Transport {
   public wss: WebSocket.Server
 
   constructor(options?: WebSocket.ServerOptions ) {
     super()
     this.wss = new WebSocket.Server(options)
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-      const client = new WebsocketClient<S>(ws, req)
+      const client = new WebsocketClient(ws, req)
       ws.on("close", (code?, data?) => {
-        client.status = "disconnecting"
+        client.status = ClientStatus.disconnecting
         this.handlers.disconnect(client, code, data)
-        client.status = "disconnected"
+        client.status = ClientStatus.disconnected
       })
       ws.on("message", (data: any) => this.handlers.message(client, data))
 
-      client.status = "connected"
+      client.status = ClientStatus.connected
       this.handlers.connection(client)
     }) 
 

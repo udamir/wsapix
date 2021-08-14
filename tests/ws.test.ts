@@ -1,7 +1,7 @@
 import * as http from "http"
 import WebSocket from "ws"
 
-import { Wsapix, WsapixClient } from "../packages/core/src"
+import { Wsapix, WsapixClient, ClientStatus } from "../packages/core/src"
 
 const port = 3000
 let wsx: Wsapix
@@ -31,7 +31,7 @@ describe("Websocket transport test 1", () => {
     wsx.on("connect", (client: WsapixClient) => {
       client1 = client
       expect(wsx.clients.has(client)).toBe(true)
-      expect(client.status).toBe("connected")
+      expect(client.status).toBe(ClientStatus.connected)
       done()
     })
     ws1 = new WebSocket(`ws://localhost:${port}`)
@@ -60,11 +60,11 @@ describe("Websocket transport test 1", () => {
   })
 
   test("WS server should get disconnect event from ws1", (done) => {
-    wsx.on("disconnect", (client: WsapixClient, code: number, data: any) => {
+    wsx.on("disconnect", (client: WsapixClient, code?: number, data?: any) => {
       expect(code).toBe(4001)
       expect(data).toBe("test")
       expect(client).toBe(client1)
-      expect(client.status).toBe("disconnecting")
+      expect(client.status).toBe(ClientStatus.disconnecting)
       done()
     })
     ws1.close(4001, "test")
@@ -89,7 +89,7 @@ describe("Websocket transport test 2", () => {
       expect(client.path).toBe("/test")
       expect(client.query).toBe("param=1")
       expect(client.headers).toMatchObject({ "test-header": "1234" })
-      expect(client.status).toBe("connected")
+      expect(client.status).toBe(ClientStatus.connected)
       done()
     })
     ws2 = new WebSocket(`ws://localhost:${port}/test?param=1`, { headers: { "test-header": "1234" } })

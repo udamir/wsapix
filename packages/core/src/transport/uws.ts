@@ -1,5 +1,5 @@
 import type { WebSocket, TemplatedApp } from 'uWebSockets.js'
-import { Client, Transport } from './transport'
+import { Client, ClientStatus, Transport } from './transport'
 
 export interface WebsocketOptions {
   maxPayloadLength?: number
@@ -8,7 +8,7 @@ export interface WebsocketOptions {
   maxBackpressure?: number
 }
 
-export class uWebSocketClient<S> extends Client<S> {
+export class uWebSocketClient extends Client {
 
   constructor(public ws: WebSocket) {
     super()
@@ -27,9 +27,9 @@ export class uWebSocketClient<S> extends Client<S> {
   }
 }
 
-export class uWebsocketTransport<S> extends Transport<S> {
+export class uWebsocketTransport extends Transport {
   public app: TemplatedApp
-  public clients: WeakMap<WebSocket, uWebSocketClient<S>> = new WeakMap()
+  public clients: WeakMap<WebSocket, uWebSocketClient> = new WeakMap()
 
   constructor(options: WebsocketOptions & { server: TemplatedApp }) {
     super()
@@ -66,18 +66,18 @@ export class uWebsocketTransport<S> extends Transport<S> {
       },
 
       open: async (ws: WebSocket) => {
-        const client = new uWebSocketClient<S>(ws)
+        const client = new uWebSocketClient(ws)
         this.clients.set(ws, client)
-        client.status = "connected"
+        client.status = ClientStatus.connected
         this.handlers.connection(client)
       },
 
       close: (ws: WebSocket, code: number, message: ArrayBuffer) => {
         const client = this.clients.get(ws)!
 
-        client.status = "disconnecting"
+        client.status = ClientStatus.disconnecting
         this.handlers.disconnect(client, code, Buffer.from(message.slice(0)).toString())
-        client.status = "disconnected"
+        client.status = ClientStatus.disconnected
       
       },
 

@@ -1,35 +1,39 @@
 import { EventEmitter } from 'events'
+import { promisify } from 'util'
 
 import {
   WsapixMessage, WsapixClient, ISerializer, MessageHandler, MessageKind,
   MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware, 
 } from './types'
 import { MessageSchema } from './asyncapi'
-import { Client } from './transport'
+import { ClientStatus } from './transport'
 
-// tslint:disable-next-line: no-empty
-const noop = () => {}
+type MessageHook = (client: WsapixClient, data: any, done: (err?: Error, value?: any) => void) => Promise<any>
+type HookType = "onMessage" | "preParse" | "preHandler" | "preValidation" | "preSerialization" | "preSend"
 
-interface WsapixChannelEvents<S> {
-  on(event: "connect", listener: (client: WsapixClient<S>) => void): void
-  on(event: "disconnect", listener: (client: WsapixClient<S>, code?: number, data?: any) => void): void
-  on(event: "error", listener: (client: WsapixClient<S>, message: string, data?: any) => void): void
-}
-
-export class WsapixChannel<S = any> extends EventEmitter implements WsapixChannelEvents<S> {
+export class WsapixChannel<S = any> extends EventEmitter {
   private middlewares: WsapixMiddleware<S>[] = []
-  public clients: Set<Client<S>> = new Set()
+  private hooks: Map<HookType, MessageHook[]> = new Map()
+
+  public clients: Set<WsapixClient<S>> = new Set()
   public messages: WsapixMessage[] = []
   public path: string
   public validator?: MessageValidator
 
-  public _serializer?: ISerializer
+  public _serializer?: "json" | null | ISerializer
 
-  public get serializer(): ISerializer {
-    return this._serializer || {
+  public on(event: "connect", listener: (client: WsapixClient<S>) => void): any
+  public on(event: "disconnect", listener: (client: WsapixClient<S>, code?: number, data?: any) => void): any
+  public on(event: "error", listener: (client: WsapixClient<S>, message: string, data?: any) => void): any
+  public on(event: string | symbol, listener: (...args: any[]) => void): any {
+    return super.on(event, listener)
+  }
+
+  public get serializer(): ISerializer | null {
+    return this._serializer === "json" ? {
       encode: JSON.stringify,
       decode: JSON.parse
-    }
+    } : this._serializer || null
   }
 
   constructor(path?: string | ChannelOptions, options?: ChannelOptions) {
@@ -41,11 +45,28 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
     this.path = path || "/"
     this.validator = options?.validator
     this.messages = options?.messages || []
-    this._serializer = options?.serializer
+    this._serializer = options?.serializer || "json"
   }
 
   public use(middleware: WsapixMiddleware<S>) {
     this.middlewares.push(middleware)
+  }
+
+  public addHook(type: HookType, hook: MessageHook) {
+    const hooks = this.hooks.get(type)
+    if (!hooks) {
+      this.hooks.set(type, [ hook ]) 
+    } else {
+      this.hooks.set(type, [ ...hooks, hook ])
+    }
+  }
+
+  private async runHook (type: HookType, client: WsapixClient<S>, data: any) {
+    for (const hook of this.hooks.get(type) || []) {
+      const asyncHook = promisify(hook)
+      data = await asyncHook(client, data)
+    }
+    return data
   }
 
   protected async onConnect(client: WsapixClient<S>) {
@@ -54,33 +75,47 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
       try {
         await middleware(client)
       } catch (error) {
-        this.emit("error", client, "Middleware error", error)
+        throw error
       }
-      if (client.status === "disconnecting" || client.status === "disconnected") {
+      if (client.status === ClientStatus.disconnecting || client.status === ClientStatus.disconnected) {
         return
       }
     }
 
     const _send = client.send.bind(client)
 
-    client.send = (data: any, cb?: (error?: Error) => void) => {
-      if (this.validator !== undefined) {
-        const message = this.findServerMessage(data)
+    client.send = async (data: any, cb?: (error?: Error) => void) => {
+      try {
+        // execute hooks
+        if (this.validator !== undefined) {
+          // preValidation hook
+          data = await this.runHook("preValidation", client, data)
+        
+          const message = this.findServerMessage(data)
   
-        if (!message) {
-          const error = new Error("Cannot send message: Message schema not found")
-          cb && cb(error)
-          return Promise.reject(error)
+          if (!message) {
+            const error = new Error("Cannot send message: Message schema not found")
+            cb && cb(error)
+            return Promise.reject(error)
+          }
+    
+          if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
+            return Promise.reject(new Error("Cannot send message: Payload validation error"))
+          }
         }
-  
-        if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
-          return Promise.reject(new Error("Cannot send message: Payload validation error"))
-        }
+    
+        // preSerialization hook
+        data = await this.runHook("preSerialization", client, data)
+        // encode message
+        const payload = this.serializer ? this.serializer.encode(data) : data
+        
+        // preSend hook
+        data = await this.runHook("preSerialization", client, data)
+        return _send(payload, cb)
+      } catch (error) {
+        cb && cb(error)
+        return Promise.reject(error)
       }
-  
-      // encode message
-      const payload = this.serializer.encode(data)
-      return _send(payload, cb)
     }
 
     this.clients.add(client)
@@ -88,35 +123,46 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
     this.emit("connect", client)
   }
 
-  protected onMessage(client: WsapixClient<S>, data: any) {
-    // decode message
-    let event: any
+  protected async onMessage(client: WsapixClient<S>, data: any) {
     try {
-      event = this.serializer.decode(data)
+      // onMessage hook
+      data = await this.runHook("onMessage", client, data)
+
+      // preParse hook
+      data = await this.runHook("preParse", client, data)
+      try {
+        data = this.serializer ? this.serializer.decode(data) : data
+      } catch (error) {
+        this.emit("error", client, "Unexpected message payload", data)
+        return 
+      }
+
+      const message = this.findClientMessage(data)
+
+      if (!message) {
+        this.emit("error", client, "Message not found", data)
+        return 
+      }
+
+      const { handler, schema } = message
+
+      if (!handler) {
+        this.emit("error", client, `Handler not implemented`, data)
+        return 
+      }
+
+      if (schema && this.validator !== undefined) {
+        data = await this.runHook("preValidation", client, data)
+        if (!this.validatePayload(schema.payload, data, (msg: string) => {
+          this.emit("error", client, msg, data) 
+        })) { return }
+      }
+
+      data = await this.runHook("preHandler", client, data)
+      handler(client, data)
     } catch (error) {
-      this.emit("error", client, "Unexpected message payload", data)
-      return 
+      this.emit("error", client, "Unhandled error", data)
     }
-
-    const message = this.findClientMessage(event)
-
-    if (!message) {
-      this.emit("error", client, "Message not found", event)
-      return 
-    }
-
-    const { handler, schema } = message
-
-    if (!handler) {
-      this.emit("error", client, `Handler not implemented`, event)
-      return 
-    }
-
-    if (schema && !this.validatePayload(schema.payload, event, (msg: string) => {
-      this.emit("error", client, msg, event)
-    })) { return }
-
-    handler(client, event)
   }
 
   protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {
@@ -158,8 +204,8 @@ export class WsapixChannel<S = any> extends EventEmitter implements WsapixChanne
     }
 
     // forward events
-    this.on("error", (client: Client<S>, data: any) => channel.emit("error", client, data))
-    this.on("close", (client: Client<S>) => channel.emit("close", client))
+    this.on("error", (client: WsapixClient<S>, data: any) => channel.emit("error", client, data))
+    this.on("disconnect", (client: WsapixClient<S>) => channel.emit("disconnect", client))
   }
 
   private findMessage(type: MessageKind, data: { [key: string]: any }) {

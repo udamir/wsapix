@@ -13,16 +13,16 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
   public channels: Map<string, WsapixChannel<S>> = new Map()
 
   static WS<S = any>(options: ServerOptions, defaultOptions?: ChannelOptions) {
-    const transport = new WebsocketTransport<S>(options)
+    const transport = new WebsocketTransport(options)
     return new Wsapix<S>(transport, defaultOptions)
   }
 
   static uWS<S = any>(options: { server: TemplatedApp } & WebsocketOptions, defaultOptions?: ChannelOptions) {
-    const transport = new uWebsocketTransport<S>(options)
+    const transport = new uWebsocketTransport(options)
     return new Wsapix<S>(transport, defaultOptions)
   }
 
-  constructor (public transport:  Transport<S>, defaultOptions?: ChannelOptions ) {
+  constructor (public transport:  Transport, defaultOptions?: ChannelOptions ) {
     super(defaultOptions?.path || "*", defaultOptions)
 
     this.transport.onConnection(this.onConnected.bind(this))
@@ -43,10 +43,10 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
     super.onConnect.call(channel, client)
   }
 
-  protected onMessage(client: WsapixClient<S>, data: any) {
+  protected async onMessage(client: WsapixClient<S>, data: any) {
     if (!client.channel) { return }
 
-    super.onMessage.call(client.channel, client, data)
+    return super.onMessage.call(client.channel, client, data)
   }
 
   protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {

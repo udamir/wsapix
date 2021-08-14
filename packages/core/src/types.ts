@@ -14,7 +14,7 @@ export interface ISerializer {
 export interface ChannelOptions {
   path?: string
   messages?: WsapixMessage[]
-  serializer?: ISerializer
+  serializer?: "json" | null | ISerializer
   validator?: MessageValidator
 }
 
@@ -22,7 +22,7 @@ export enum MessageKind {
   client = 0,
   server = 1
 }
-export type MessageHandler<S = any, T = any> = (ctx: Client<S>, data: T) => void
+export type MessageHandler<S = any, T = any> = (ctx: WsapixClient<S>, data: T) => void
 export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean)
 
 export interface WsapixMessage {
@@ -32,9 +32,12 @@ export interface WsapixMessage {
   schema?: MessageSchema
 }
 
-export type WsapixClient<S = any> = Client<S> & { channel?: WsapixChannel<S> }
+export type WsapixClient<S = any> = Client & { 
+  channel?: WsapixChannel<S>
+  state?: S
+}
 
-export type WsapixMiddleware<T> = (ctx: Client<T>) => void | Promise<void>
+export type WsapixMiddleware<T> = (ctx: WsapixClient<T>) => void | Promise<void>
 
 export interface IClientHandlers {
   onopen?: () => void
