@@ -2,8 +2,8 @@ import { EventEmitter } from 'events'
 import { promisify } from 'util'
 
 import {
-  WsapixMessage, WsapixClient, ISerializer, MessageHandler, MessageKind,
-  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware, 
+  WsapixMessage, WsapixClient, MessageHandler, MessageKind, DataParser,
+  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware,  
 } from './types'
 import { MessageSchema } from './asyncapi'
 import { ClientStatus } from './transport'
@@ -20,7 +20,8 @@ export class WsapixChannel<S = any> extends EventEmitter {
   public path: string
   public validator?: MessageValidator
 
-  public _serializer?: "json" | null | ISerializer
+  private _parser?: "json" | null | DataParser
+  private _serializer?: "json" | null | DataParser
 
   public on(event: "connect", listener: (client: WsapixClient<S>) => void): any
   public on(event: "disconnect", listener: (client: WsapixClient<S>, code?: number, data?: any) => void): any
@@ -29,11 +30,12 @@ export class WsapixChannel<S = any> extends EventEmitter {
     return super.on(event, listener)
   }
 
-  public get serializer(): ISerializer | null {
-    return this._serializer === "json" ? {
-      encode: JSON.stringify,
-      decode: JSON.parse
-    } : this._serializer || null
+  public get parser(): DataParser {
+    return this._parser === "json" ? JSON.parse : this._parser || ((data: any) => data)
+  }
+
+  public get serializer(): DataParser {
+    return this._serializer === "json" ? JSON.stringify : this._serializer || ((data: any) => data)
   }
 
   constructor(path?: string | ChannelOptions, options?: ChannelOptions) {
@@ -45,6 +47,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.path = path || "/"
     this.validator = options?.validator
     this.messages = options?.messages || []
+    this._parser = options?.parser || "json"
     this._serializer = options?.serializer || "json"
   }
 
@@ -107,11 +110,11 @@ export class WsapixChannel<S = any> extends EventEmitter {
         // preSerialization hook
         data = await this.runHook("preSerialization", client, data)
         // encode message
-        const payload = this.serializer ? this.serializer.encode(data) : data
+        data = this.serializer(data)
         
         // preSend hook
         data = await this.runHook("preSerialization", client, data)
-        return _send(payload, cb)
+        return _send(data, cb)
       } catch (error) {
         cb && cb(error)
         return Promise.reject(error)
@@ -131,7 +134,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
       // preParse hook
       data = await this.runHook("preParse", client, data)
       try {
-        data = this.serializer ? this.serializer.decode(data) : data
+        data = this.parser(data)
       } catch (error) {
         this.emit("error", client, "Unexpected message payload", data)
         return 
@@ -194,6 +197,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
 
   protected inherit(channel: WsapixChannel<S>) {
     // set default channel parameters
+    this._parser = this._parser || channel.parser
     this._serializer = this._serializer || channel.serializer
     this.validator = this.validator || channel.validator
 

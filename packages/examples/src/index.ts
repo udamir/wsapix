@@ -37,7 +37,8 @@ const ajv = new Ajv({ strict: false })
 
 const wsapi = Wsapix.WS<IChatClientContextState>({ server }, {
   validator: ajv.validate.bind(ajv),
-  serializer: notepack
+  parser: notepack.decode,
+  serializer: notepack.encode
 })
 
 wsapi.use((client) => {

@@ -6,15 +6,13 @@ import { Client } from './transport'
 
 export type MessageValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
 
-export interface ISerializer {
-  encode: (data: any) => any
-  decode: (data: any) => any
-}
+export type DataParser = (data: any) => any
 
 export interface ChannelOptions {
   path?: string
   messages?: WsapixMessage[]
-  serializer?: "json" | null | ISerializer
+  parser?: "json" | null | DataParser
+  serializer?: "json" | null | DataParser
   validator?: MessageValidator
 }
 

@@ -42,7 +42,7 @@ describe("Channels test", () => {
     const msg1 = { type: "test", test: "test" }
     const notepack = require("notepack.io")
 
-    const route = wsx.route({ path: "/msgpack", serializer: notepack })
+    const route = wsx.route({ path: "/msgpack", serializer: notepack.encode, parser: notepack.decode })
     expect(wsx.channels.has("/msgpack")).toBe(true)
 
     route.clientMessage({ type: "test" }, (client: WsapixClient, msg: any) => {

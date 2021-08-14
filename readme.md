@@ -7,8 +7,8 @@ Next generation Websocket framework for nodejs
 Wsapix provides to you:
 - Channel/message approach for websocket API 
 - uWebsockets.js engine support 
-- Middlewares support
-- Custom schema serialization support
+- Middlewares and hooks support
+- Custom schema parser/serializer support
 - Message paylaod validation
 - AsyncAPI specification generation
 - Typescript syntax support out of the box
@@ -75,13 +75,22 @@ wsx.use((client: Client) => {
 })
 ```
 
-## Add custom serialization
-Default message payload serialization is JSON stringnify/parse. Wsapix support custom serialization:
+## Add custom parser/serializer
+Default message payload parser/serializer is JSON parse/stringify. 
+Wsapix support custom parser/serializer:
 
 ```ts
 const notepack = require("notepack.io")
 
-const wsx = Wsapix.WS({ server }, { serializer: notepack })
+const wsx = Wsapix.WS({ server }, { 
+  serializer: notepack.encode, 
+  parser: notepack.decode
+})
+```
+Parser/Serializer can be removed in any channel:
+```ts
+wsx.route("/raw", { parser: null, serializer: null })
+
 ```
 
 ## Add payload validation
