@@ -41,7 +41,6 @@ export class AsyncApiBuilder {
     this.channels.set(name, {
       ... pubMessages.length ? { publish: {
         description: "Send messages to the server",
-        operationId: "sendMessage",
         message: {
           ...pubMessages.length > 1 ? {
             oneOf: pubMessages.map((msg) => this.addMessageRef(msg))
@@ -50,7 +49,6 @@ export class AsyncApiBuilder {
       }} : {},
       ... subMessages.length ? { subscribe: {
         description: "Messages that you receive from the server",
-        operationId: "onMessage",
         message: {
           ...subMessages.length > 1 ? {
             oneOf: subMessages.map((msg) => this.addMessageRef(msg))

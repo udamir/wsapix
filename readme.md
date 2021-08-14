@@ -21,7 +21,7 @@ Wsapix provides to you:
 npm install --save wsapix
 ```
 
-## Create websocket server
+## Create websocket server over http(s) or uWebSockets
 
 ```ts
 import * as http from "http"
@@ -66,9 +66,9 @@ interface IClientState {
 const wsx = Wsapix.WS<IClientState>({ server })
 
 // connection hook middleware
-wsx.use((client: Client) => {
+wsx.use((client: WsapixClient) => {
   // check auth
-  const user = authUser(client.req?.url)
+  const user = authUser(client.query)
 
   // store user id in state 
   client.state.userId = data.userId
@@ -99,7 +99,6 @@ wsx.route("/raw", { parser: null, serializer: null })
 import * as http from "http"
 import Ajv from "ajv"
 import { Wsapix } from "wsapix"
-
 
 const ajv = new Ajv({ strict: false })
 
