@@ -8,36 +8,93 @@ import {
 import { MessageSchema } from './asyncapi'
 import { ClientStatus } from './transport'
 
+/**
+ * Handler for event hook
+ * @param client - client context
+ * @param data - message payload
+ * @param done - callback function on complete with update payload
+ * @returns promise with updated payload
+ */
 type MessageHook = (client: WsapixClient, data: any, done: (err?: Error, value?: any) => void) => Promise<any>
+
+/**
+ * Hooks are registered with the addHook method and allow you to listen to specific message events lifecycle. 
+ * `onMessage` - event on client messages
+ * `preParse` - event before client message parsing 
+ * `preValidation` - event before client message validation 
+ * `preHandler` - event before client message handler execution
+ * `preSerialization` - event before send message serialization
+ * `preSend` - event before send message to client
+ */
 type HookType = "onMessage" | "preParse" | "preHandler" | "preValidation" | "preSerialization" | "preSend"
 
 export class WsapixChannel<S = any> extends EventEmitter {
   private middlewares: WsapixMiddleware<S>[] = []
   private hooks: Map<HookType, MessageHook[]> = new Map()
 
+  /**
+   * connected clients
+   */
   public clients: Set<WsapixClient<S>> = new Set()
+  /**
+   * Registered messages
+   */
   public messages: WsapixMessage[] = []
+  /**
+   * Channel path
+   */
   public path: string
+  /**
+   * Channel validator
+   */
   public validator?: MessageValidator
 
   private _parser?: "json" | null | DataParser
   private _serializer?: "json" | null | DataParser
 
+  /**
+   * Handle client connection
+   * @param event - `connect`
+   * @param listener - Handler
+   */
   public on(event: "connect", listener: (client: WsapixClient<S>) => void): any
+
+  /**
+   * Handle client diconnection
+   * @param event - `disconnect`
+   * @param listener - Handler
+   */
   public on(event: "disconnect", listener: (client: WsapixClient<S>, code?: number, data?: any) => void): any
+
+  /**
+   * Handler for error
+   * @param event - `error`
+   * @param listener - Handler
+   */
   public on(event: "error", listener: (client: WsapixClient<S>, message: string, data?: any) => void): any
   public on(event: string | symbol, listener: (...args: any[]) => void): any {
     return super.on(event, listener)
   }
 
+  /**
+   * Channel parser
+   */
   public get parser(): DataParser {
     return this._parser === "json" ? JSON.parse : this._parser || ((data: any) => data)
   }
 
+  /**
+   * Channel serializer
+   */
   public get serializer(): DataParser {
     return this._serializer === "json" ? JSON.stringify : this._serializer || ((data: any) => data)
   }
 
+  /**
+   * Channel constructor
+   * @param path - channel path
+   * @param options - channel options
+   */
   constructor(path?: string | ChannelOptions, options?: ChannelOptions) {
     super()
     if (typeof path === "object") {
@@ -51,10 +108,20 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this._serializer = options?.serializer || "json"
   }
 
+  /**
+   * Register connection hook
+   * @param middleware - connection hook
+   */
   public use(middleware: WsapixMiddleware<S>) {
     this.middlewares.push(middleware)
   }
 
+  /**
+   * Register message hook
+   * @param type - type of hook
+   * 
+   * @param hook - hook handler
+   */
   public addHook(type: HookType, hook: MessageHook) {
     const hooks = this.hooks.get(type)
     if (!hooks) {
@@ -187,11 +254,21 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.messages.push({ kind: MessageKind.client, matcher, handler, schema })
   }
 
+  /**
+   * Find client message by payload
+   * @param data - payload
+   * @returns Message or undefined
+   */
   public findClientMessage(data: { [key: string]: any }) {
     return this.findMessage(MessageKind.client, data)
   }
 
-  public findServerMessage(data: { [key: string]: any }) {
+  /**
+   * Find server message by payload
+   * @param data - message payload
+   * @returns Message or undefined
+   */
+  public findServerMessage(data: { [key: string]: any }): WsapixMessage | undefined {
     return this.findMessage(MessageKind.server, data)
   }
 
