@@ -201,5 +201,34 @@ const asyncApi = wsx.asyncapi({
 ```ts
 const html = wsx.htmlDocTemplate("/asyncapi", "Chat websocket API")
 ```
+
+## Testing
+
+Wsapix comes with built-in support for fake Websocket client injection:
+
+```ts
+const mws = new MockTransport()
+const wsx = new Wsapix(mockws)
+
+const ws1 = mws.inject({ path: "/v1", query: "token=12345" })
+
+// handle server messages
+ws1.onmessage = ({ data }) => {
+  // decode message from server
+  const message = notepack.decode(data)
+  
+  // handle server message
+  if (message.type === "error") {
+    // ...
+  }
+}
+
+// encode and send message to injected client
+ws1.send(notepack.encode({ type: "chat:message", chatId, text: "Hello" }))
+
+// close connection
+ws1.close()
+```
+
 # License
 MIT
