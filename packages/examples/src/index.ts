@@ -1,6 +1,7 @@
+import { Type } from "@sinclair/typebox"
+import { Wsapix } from "wsapix"
 import * as http from "http"
 import Ajv from "ajv"
-import { Wsapix } from "wsapix"
 
 import * as chat from "./chat"
 
@@ -43,7 +44,7 @@ const wsapi = Wsapix.WS<IChatClientContextState>({ server }, {
 
 wsapi.use((client) => {
   // check auth
-  if (!client.query || client.query !== "123") {
+  if (!client.query) {
     client.send({ type: "error", message: "Wrong token!", code: 401 })
     client.terminate(4003)
   }
@@ -52,22 +53,11 @@ wsapi.use((client) => {
 wsapi.serverMessage({ type: "error" }, {
   $id: "error",
   description: "Backend error message",
-  payload: {
-    type: "object",
-    properties: {
-      type: {
-        type: "string",
-        const: "error"
-      },
-      message: {
-        type: "string",
-      },
-      code: {
-        type: "number"
-      }
-    },
-    required: ["type", "message"]
-  },
+  payload: Type.Strict(Type.Object({
+    type: Type.String({ const: "error" }),
+    message: Type.String(),
+    code: Type.Number()
+  })),
 })
 
 wsapi.route(chat.channel)
