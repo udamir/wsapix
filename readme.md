@@ -11,7 +11,7 @@ Wsapix provides to you:
 - Custom schema parser/serializer support
 - Message paylaod validation
 - AsyncAPI specification generation
-- Mock server and fake websocket client injection support
+- Mock server with websocket client injection
 - Typescript syntax support out of the box
 
 # Quick start
