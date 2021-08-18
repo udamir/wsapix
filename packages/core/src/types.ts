@@ -21,7 +21,7 @@ export type DataParser = (data: any) => any
 /**
  * WsapixChannel constructor options
  */
-export interface ChannelOptions {
+export interface ChannelOptions<S> {
   /**
    * Channel route
    */
@@ -30,7 +30,7 @@ export interface ChannelOptions {
   /**
    * List of WsapixMessages for this channel
    */
-  messages?: WsapixMessage[]
+  messages?: WsapixMessage<S>[]
 
   /**
    * Channel parser
@@ -63,7 +63,7 @@ export enum MessageKind {
  * @param client - client context
  * @param data - message payload 
  */
-export type MessageHandler<S = any, T = any> = (client: WsapixClient<S>, data: T) => void
+export type MessageHandler<S, T = any> = (client: WsapixClient<S>, data: T) => void
 
 /**
  * Payload matcher - object or function - to find relevant message in channel
@@ -84,7 +84,7 @@ export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean
 /**
  * 
  */
-export interface WsapixMessage {
+export interface WsapixMessage<S = any, T = any> {
   /**
    * Message kind - server or client
    */
@@ -98,7 +98,7 @@ export interface WsapixMessage {
   /**
    * Message handler
    */
-  handler?: MessageHandler
+  handler?: MessageHandler<S, T>
 
   /**
    * Message payload JsonSchema

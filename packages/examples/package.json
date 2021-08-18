@@ -23,6 +23,7 @@
   "author": "Damir Yusipov",
   "license": "MIT",
   "dependencies": {
+    "@sinclair/typebox": "^0.20.4",
     "ajv": "^8.6.2",
     "notepack.io": "^2.3.0",
     "wsapix": "^0.4.4"

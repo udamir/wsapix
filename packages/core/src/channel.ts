@@ -95,7 +95,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
    * @param path - channel path
    * @param options - channel options
    */
-  constructor(path?: string | ChannelOptions, options?: ChannelOptions) {
+  constructor(path?: string | ChannelOptions<S>, options?: ChannelOptions<S>) {
     super()
     if (typeof path === "object") {
       options = path
@@ -244,7 +244,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.messages.push({ kind: MessageKind.server, matcher, schema })
   }
 
-  public clientMessage (matcher: MessageMatcher, schema?: MessageSchema | MessageHandler, handler?: MessageHandler) {
+  public clientMessage<S, T = any> (matcher: MessageMatcher, schema?: MessageSchema | MessageHandler<S, T>, handler?: MessageHandler<S, T>) {
 
     if (typeof schema === "function") {
       handler = schema
@@ -268,7 +268,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
    * @param data - message payload
    * @returns Message or undefined
    */
-  public findServerMessage(data: { [key: string]: any }): WsapixMessage | undefined {
+  public findServerMessage(data: { [key: string]: any }): WsapixMessage<S, any> | undefined {
     return this.findMessage(MessageKind.server, data)
   }
 

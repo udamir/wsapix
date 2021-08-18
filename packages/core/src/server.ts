@@ -25,7 +25,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param defaultOptions - channel options
    * @returns Wsapix instance
    */
-  static WS<S = any>(options: ServerOptions, defaultOptions?: ChannelOptions) {
+  static WS<S = any>(options: ServerOptions, defaultOptions?: ChannelOptions<S>) {
     const transport = new WebsocketTransport(options)
     return new Wsapix<S>(transport, defaultOptions)
   }
@@ -36,7 +36,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param defaultOptions - channel options
    * @returns Wsapix instance
    */
-  static uWS<S = any>(options: { server: TemplatedApp } & WebsocketOptions, defaultOptions?: ChannelOptions) {
+  static uWS<S = any>(options: { server: TemplatedApp } & WebsocketOptions, defaultOptions?: ChannelOptions<S>) {
     const transport = new uWebsocketTransport(options)
     return new Wsapix<S>(transport, defaultOptions)
   }
@@ -46,7 +46,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param transport - wsapix transport
    * @param defaultOptions - channel options
    */
-  constructor (public transport:  Transport, defaultOptions?: ChannelOptions ) {
+  constructor (public transport:  Transport, defaultOptions?: ChannelOptions<S>) {
     super(defaultOptions?.path || "*", defaultOptions)
 
     this.transport.onConnection(this.onConnected.bind(this))
@@ -166,7 +166,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param options - channel options
    * @returns Channel instance
    */
-  public route(path: string | WsapixChannel<S> | ChannelOptions, options?: ChannelOptions): WsapixChannel<S> {
+  public route(path: string | WsapixChannel<S> | ChannelOptions<S>, options?: ChannelOptions<S>): WsapixChannel<S> {
     // create channel
     const channel = path instanceof WsapixChannel ? path : new WsapixChannel<S>(path, options)
     const channelPath = channel.path
