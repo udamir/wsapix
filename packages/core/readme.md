@@ -11,6 +11,7 @@ Wsapix provides to you:
 - Custom schema parser/serializer support
 - Message paylaod validation
 - AsyncAPI specification generation
+- Mock server and fake websocket client injection support
 - Typescript syntax support out of the box
 
 # Quick start
@@ -201,5 +202,36 @@ const asyncApi = wsx.asyncapi({
 ```ts
 const html = wsx.htmlDocTemplate("/asyncapi", "Chat websocket API")
 ```
+
+## Testing
+
+Wsapix comes with built-in Mock Transport and Fake WebSocket client injection:
+
+```ts
+const mws = new MockTransport()
+const wsx = new Wsapix(mockws)
+
+wsx.route("/v1")
+
+const ws1 = mws.inject("/v1?token=12345")
+
+// handle server messages
+ws1.onmessage = ({ data }) => {
+  // decode message from server
+  const message = notepack.decode(data)
+  
+  // handle server message
+  if (message.type === "error") {
+    // ...
+  }
+}
+
+// encode and send message to injected client
+ws1.send(notepack.encode({ type: "chat:message", chatId, text: "Hello" }))
+
+// close connection
+ws1.close()
+```
+
 # License
 MIT

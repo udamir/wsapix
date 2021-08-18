@@ -5,8 +5,7 @@ export enum ClientStatus {
   disconnected = 3
 }
 
-// tslint:disable-next-line: no-empty
-const noop = () => {}
+const noop = () => { /**/ }
 
 /**
  * Abstract client class

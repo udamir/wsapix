@@ -15,7 +15,7 @@ const initEnv = () => {
 }
 
 const closeEnv = async (done: any) => {
-  await wsx.close(() => {})
+  await wsx.close()
   server.close(done)
 }
 

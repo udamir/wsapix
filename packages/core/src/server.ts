@@ -2,8 +2,8 @@ import type { TemplatedApp } from 'uWebSockets.js'
 import type { ServerOptions } from 'ws'
 
 import { Transport, WebsocketTransport, WebsocketOptions, uWebsocketTransport } from './transport'
-import { ChannelOptions, MessageKind, WsapixClient } from './types'
 import { IAsyncApiBuilderParams, AsyncApiBuilder, Message } from './asyncapi'
+import { ChannelOptions, MessageKind, WsapixClient } from './types'
 import { WsapixChannel } from './channel'
 import { html } from './template'
 

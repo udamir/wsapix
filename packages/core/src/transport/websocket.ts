@@ -49,7 +49,7 @@ export class WebsocketTransport extends Transport {
 
       client.status = ClientStatus.connected
       this.handlers.connection(client)
-    }) 
+    })
 
     this.wss.on("error", this.handlers.error.bind(this))
   }

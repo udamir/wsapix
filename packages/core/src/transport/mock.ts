@@ -1,27 +1,21 @@
 import { Client, ClientStatus, Transport } from '.'
 
-export interface IClientHandlers {
-  onopen?: () => void
-  onerror?: (message: string, error: any) => void
-  onclose?: (code: number, reason: string) => void
-  onmessage?: (data: string | Buffer | ArrayBuffer | Buffer[]) => void
-}
+const noop = () => { /**/ }
 
-export interface IClientInjectParams extends IClientHandlers {
-  path?: string
-  query?: string
+export interface IClientInjectParams {
+  connectionDelay?: number
   headers?: { [key: string]: string | string[] | undefined }
 }
 
-enum WebSocketClientState {
+export enum ClientSocketState {
   CONNECTING = 0,
   OPEN = 1,
   CLOSING = 2,
   CLOSED = 3
 }
 
-export interface IWebSocketClient {
-  readyState: WebSocketClientState
+export interface IClientSocket {
+  readyState: ClientSocketState
 
   onopen: (event: { type: "open" }) => void
   onerror: (event: { type: "error", message: string, error: any }) => void
@@ -36,27 +30,31 @@ export class MockTransport extends Transport {
     return Promise.resolve(cb && cb())
   }
 
-  public inject(params: IClientInjectParams = {}) {
-    const { path, query, headers, ...handlers } = params
-    const socket: IWebSocketClient = {
-      readyState: WebSocketClientState.OPEN,
+  public inject(url: string = "/", params: IClientInjectParams = {}) {
+    const { headers, connectionDelay, ...handlers } = params
 
-      onopen: () => handlers.onopen && handlers.onopen(),
-      onerror: (event) => handlers.onerror && handlers.onerror(event.message, event.error),
-      onclose: (event) => handlers.onclose && handlers.onclose(event.code, event.reason),
-      onmessage: (event) => handlers.onmessage && handlers.onmessage(event.data),
+    const socket: IClientSocket = {
+      readyState: ClientSocketState.OPEN,
+
+      onopen: noop,
+      onerror: noop,
+      onclose: noop,
+      onmessage: noop,
 
       send: (data: any) => this.handlers.message(client, data),
-  
+
       close: (code: number = 0, reason: string = "") => {
         client.status = ClientStatus.disconnecting
-        this.handlers.disconnect(client, code, reason)
-        client.status = ClientStatus.disconnected
-      }  
+        setTimeout(() => {
+          this.handlers.disconnect(client, code, reason)
+          client.status = ClientStatus.disconnected
+        }, connectionDelay)
+      }
     }
-    const client = new MockClient(socket, path, query, headers)
+    const client = new MockClient(socket, url, headers, connectionDelay)
 
-    socket.onopen({ type: "open" })
+    setTimeout(() => socket.onopen({ type: "open" }), connectionDelay)
+
     client.status = ClientStatus.connected
     this.handlers.connection(client)
     return socket
@@ -65,18 +63,27 @@ export class MockTransport extends Transport {
 
 export class MockClient extends Client {
 
-  constructor(public socket: IWebSocketClient, public path = "/", public query = "", public headers = {}) {
+  constructor(public socket: IClientSocket, url: string, public headers = {}, private connectionDelay = 5) {
     super()
+    const parsedUrl = new URL(url, "ws://localhost/")
+    this.path = parsedUrl.pathname
+    this.query = parsedUrl.search.slice(1)
   }
 
   protected _send(data: any, cb?: (error?: Error) => void): Promise<void> {
-    this.socket.onmessage({ type: "message", data })
-    return Promise.resolve(cb && cb())
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        this.socket.onmessage({ type: "message", data })
+        return resolve(cb && cb())
+      }, this.connectionDelay)
+    })
   }
 
   protected _terminate(code = 1006, reason?: any): void {
-    this.socket.readyState = WebSocket.CLOSING
-    this.socket.onclose({ type: "close", code, reason })
-    this.socket.readyState = WebSocket.CLOSED
+    this.socket.readyState = ClientSocketState.CLOSING
+    setTimeout(() => {
+      this.socket.readyState = ClientSocketState.CLOSED
+      this.socket.onclose({ type: "close", code, reason })
+    }, this.connectionDelay)
   }
 }
