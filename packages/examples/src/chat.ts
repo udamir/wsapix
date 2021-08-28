@@ -1,64 +1,102 @@
 import { WsapixChannel, WsapixClient } from "wsapix"
 import { Type, Static } from "@sinclair/typebox"
 
-export const channel = new WsapixChannel({ path: "/chat" })
+export interface IClientState {
+  userId: string
+  name: string
+}
 
+export const chat = new WsapixChannel<IClientState>({ path: "/chat" })
+
+chat.use((client) => {
+  // check auth
+  if (!client.query) {
+    client.send({ type: "error", message: "Wrong token!", code: 401 })
+    return client.terminate(4003)
+  }
+  client.state = { userId: Date.now().toString(36), name: client.query }
+})
 /* Client messages */
 
-// Client message
+// message from client
 
-export const msUserMessage = Type.Strict(Type.Object({
-  type: Type.String({ const: "user:message", description: "Message type" }),
-  userId: Type.String({ description: "User Id" }),
-  text: Type.String({ description: "Message text" })
-}, { $id: "user:message" }))
-
-export type UserMessageSchema = Static<typeof msUserMessage>
-
-channel.clientMessage({ type: "user:message"}, {
+export const userMessageSchema = {
   $id: "user:message",
   description: "New user message",
-  payload: msUserMessage,
-}, (client: WsapixClient, data: UserMessageSchema) => {
-  // TODO
+  payload: Type.Strict(Type.Object({
+    type: Type.String({ const: "user:message", description: "Message type" }),
+    text: Type.String({ description: "Message text" })
+  }, { $id: "user:message" }))
+}
+
+export type UserMessageSchema = Static<typeof userMessageSchema.payload>
+
+chat.clientMessage({ type: "user:message"}, userMessageSchema, (client: WsapixClient, data: UserMessageSchema) => {
+  chat.clients.forEach((c) => {
+    if (c === client) { return } 
+    c.send({
+      type: "chat:message",
+      userId: client.state.userId,
+      text: data.text
+    })
+  })
 })
 
 /* Server messages */
 
 // New chat message
 
-channel.serverMessage({ type: "message:add" }, {
-  $id: "message:add",
+export const chatMessageSchema = {
+  $id: "chat:message",
   description: "New message in chat",
-  payload: msUserMessage
-})
+  payload: Type.Strict(Type.Object({
+    type: Type.String({ const: "chat:message", description: "Message type" }),
+    userId: Type.String({ description: "User Id" }),
+    text: Type.String({ description: "Message text" })
+  }, { $id: "chat:message" }))
+}
+
+chat.serverMessage({ type: "chat:message" }, chatMessageSchema)
 
 // User connect message
 
-export const msUserConnected = Type.Strict(Type.Object({
-  type: Type.String({ const: "user:connected", description: "Message type" }),
-  userId: Type.String({ description: "User id" }),
-  name: Type.String({ description: "User name" }),
-}, { $id: "user:connected" }))
-
-channel.serverMessage({ type: "user:connected" }, {
+export const userConnectedSchema = {
   $id: "user:connected",
   description: "User online status update",
-  payload: msUserConnected,
+  payload: Type.Strict(Type.Object({
+    type: Type.String({ const: "user:connected", description: "Message type" }),
+    userId: Type.String({ description: "User id" }),
+    name: Type.String({ description: "User name" }),
+  }, { $id: "user:connected" }))
+}
+
+chat.serverMessage({ type: "user:connected" }, userConnectedSchema)
+
+chat.on("connect", (client) => {
+  chat.clients.forEach((c) => {
+    if (c === client) { return }
+    c.send({ type: "user:connected", ...client.state })
+    client.send({ type: "user:connected", ...c.state })
+  })
 })
 
 // User disconnect message
 
-export const msUserDisconnected = Type.Strict(Type.Object({
-  type: Type.String({ const: "user:disconnected", description: "Message type" }),
-  userId: Type.String({ description: "User Id" }),
-}, { $id: "user:disconnected" }))
-
-channel.serverMessage({ type: "user:disconnected" }, {
+export const userDisconnectedSchema = {
   $id: "user:disconnected",
   description: "User online status update",
-  payload: msUserDisconnected,
+  payload: Type.Strict(Type.Object({
+    type: Type.String({ const: "user:disconnected", description: "Message type" }),
+    userId: Type.String({ description: "User Id" }),
+    name: Type.String({ description: "User name" }),
+  }, { $id: "user:disconnected" }))
+}
+
+chat.serverMessage({ type: "user:disconnected" }, userDisconnectedSchema)
+
+chat.on("disconnect", (client) => {
+  chat.clients.forEach((c) => {
+    if (c === client) { return } 
+    c.send({ type: "user:disconnected", ...client.state })
+  })
 })
-
-
-

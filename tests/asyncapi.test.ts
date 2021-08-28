@@ -12,10 +12,9 @@ const initEnv = () => {
   server = new http.Server()
   const ajv = new Ajv({ strict: true })
   wsx = Wsapix.WS({ server }, {
-    validator: (schema: any, data: any, error?: (msg: string) => void) => {
-      const validate = ajv.compile(schema)
-      const valid = validate(data)
-      if (!valid && validate.errors) { error && error(validate.errors.map(({ message }) => message).join(", ")) }
+    validator: (schema: any, data: any, error: (msg: string) => void) => {
+      const valid = ajv.validate(schema, data)
+      if (!valid) { error(ajv.errors!.map(({ message }) => message).join(", ")) }
       return valid
     }
   })

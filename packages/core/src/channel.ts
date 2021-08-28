@@ -169,8 +169,12 @@ export class WsapixChannel<S = any> extends EventEmitter {
             return Promise.reject(error)
           }
     
-          if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => cb && cb(new Error(msg)))) {
-            return Promise.reject(new Error("Cannot send message: Payload validation error"))
+          let error = ""
+          if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => {
+            error = msg
+            cb && cb(new Error(msg))
+          })) {
+            return Promise.reject(new Error("Cannot send message - payload validation error:\n" + error))
           }
         }
     

@@ -1,70 +1,53 @@
 import { Type } from "@sinclair/typebox"
+import { App } from "uWebSockets.js"
 import { Wsapix } from "wsapix"
-import * as http from "http"
 import Ajv from "ajv"
 
-import * as chat from "./chat"
+import { chat } from "./chat"
 
-// tslint:disable-next-line: no-var-requires
-const notepack = require("notepack.io")
-
-export interface IChatClientContextState {
-  user: any
-  db: any
-}
-
-const asyncApiParams = {
-  info: {
-    version: "1.0.0",
-    title: "Chat websocket API"
-  }
-}
-
-const port = Number(process.env.PORT || 3000)
-const server = new http.Server((req, res) => {
-  if (req.url === "/wsapi") {
-    res.setHeader("Content-Type", "application/json")
-    res.end(wsapi.asyncapi(asyncApiParams))
-  } else if (req.url === "/") {
-    res.setHeader("Content-Type", "text/html")
-    res.end(wsapi.htmlDocTemplate("/wsapi"))
-  } else {
-    res.writeHead(404)
-    res.end()
-  }
-})
+const port = Number(process.env.PORT || "3000")
+const server = App()
 
 const ajv = new Ajv({ strict: false })
 
-const wsapi = Wsapix.WS<IChatClientContextState>({ server }, {
-  validator: ajv.validate.bind(ajv),
-  parser: notepack.decode,
-  serializer: notepack.encode
-})
-
-wsapi.use((client) => {
-  // check auth
-  if (!client.query) {
-    client.send({ type: "error", message: "Wrong token!", code: 401 })
-    client.terminate(4003)
+const wsx = Wsapix.uWS({ server }, {
+  validator: (schema, data, error) => {
+    const valid = ajv.validate(schema, data)
+    if (!valid) {
+      error(ajv.errors!.map(({ message }) => message).join(",\n"))
+    }
+    return valid
   }
 })
 
-wsapi.serverMessage({ type: "error" }, {
+wsx.route(chat)
+
+wsx.serverMessage({ type: "error" }, {
   $id: "error",
   description: "Backend error message",
   payload: Type.Strict(Type.Object({
     type: Type.String({ const: "error" }),
     message: Type.String(),
-    code: Type.Number()
+    code: Type.Optional(Type.Number())
   })),
 })
 
-wsapi.route(chat.channel)
-
-wsapi.on("error", (ctx, error) => {
+wsx.on("error", (ctx, error) => {
   ctx.send({ type: "error", message: error })
   console.log(error)
+})
+
+server.get("/", (res) => {
+  res.writeHeader('Content-Type', 'text/html').end(wsx.htmlDocTemplate("/wsapix"))
+})
+
+server.get("/wsapix", (res) => {
+  res.writeHeader('Content-Type', 'application/json').end(wsx.asyncapi({
+    info: {
+      version: "1.0.0",
+      title: "Chat websocket API"
+    }
+  }))
 })
 
 server.listen(port, () => {

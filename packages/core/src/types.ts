@@ -9,7 +9,7 @@ import { Client } from './transport'
  * @param error - Callback function to get error message
  * @returns Validation result
  */
-export type MessageValidator = (schema: any, data: any, error?: (msg: string) => void) => boolean
+export type MessageValidator = (schema: any, data: any, error: (msg: string) => void) => boolean
 
 /**
  * Parser/Serializer function
