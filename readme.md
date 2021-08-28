@@ -208,7 +208,7 @@ Wsapix comes with built-in Mock Transport and Fake WebSocket client injection:
 
 ```ts
 const mws = new MockTransport()
-const wsx = new Wsapix(mockws)
+const wsx = new Wsapix(mws)
 
 const ws1 = mws.inject("/v1?token=12345")
 
