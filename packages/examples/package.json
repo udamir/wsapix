@@ -1,6 +1,6 @@
 {
   "name": "@wsapix/examples",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "private": true,
   "description": "Wsapix examples project",
   "main": "dist/index.js",
@@ -27,7 +27,7 @@
     "ajv": "^8.6.2",
     "notepack.io": "^2.3.0",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v19.3.0",
-    "wsapix": "^0.4.6"
+    "wsapix": "^0.4.7"
   },
   "devDependencies": {
     "@types/jest": "^26.0.15",
