@@ -214,10 +214,10 @@ export interface ExternalDocs {
   url: string
 }
 
-export type JsonSchema = JsonSchemaBase | JsonSchemaNumber | JsonSchemaString 
+export type JsonSchema = JsonSchemaBase | JsonSchemaNumber | JsonSchemaString
   | JsonSchemaGeneric | JsonSchemaObject | JsonSchemaArray | JsonSchemaObject | JsonSchemaMix
 
-type JsonSchemaMix = JsonSchemaBase & JsonSchemaNumber & JsonSchemaString 
+type JsonSchemaMix = JsonSchemaBase & JsonSchemaNumber & JsonSchemaString
   & JsonSchemaGeneric & JsonSchemaObject & JsonSchemaArray & JsonSchemaObject & {
   type: ("string" | "number" | "object" | "array" | "boolean" | "null")[]
 }
@@ -229,7 +229,7 @@ interface JsonSchemaBase {
   description?: string
   'default'?: any
   'enum'?: any[]
-  type?: "string" | "number" | "object" | "array" | "boolean" | "null" 
+  type?: "string" | "number" | "object" | "array" | "boolean" | "null"
   [ key: string ]: any
 }
 

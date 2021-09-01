@@ -61,19 +61,19 @@ export enum MessageKind {
 /**
  * Handler function for client messages
  * @param client - client context
- * @param data - message payload 
+ * @param data - message payload
  */
 export type MessageHandler<S, T = any> = (client: WsapixClient<S>, data: T) => void
 
 /**
  * Payload matcher - object or function - to find relevant message in channel
- * 
+ *
  * @example
  * Object payload matcher check values of all key values in payload:
  * ```ts
  * wsx.clientMessage({ type: "text" }, handler)
  * ```
- * 
+ *
  * Function payload matcher returns if payload match channel message:
  * ```ts
  * wsx.clientMessage((data: any) => data.type === "text", handler)
@@ -82,7 +82,7 @@ export type MessageHandler<S, T = any> = (client: WsapixClient<S>, data: T) => v
 export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean)
 
 /**
- * 
+ *
  */
 export interface WsapixMessage<S = any, T = any> {
   /**
@@ -120,7 +120,7 @@ export type WsapixClient<S = any> = Client & {
 
 /**
  * Middleware - client connection hook
- * 
+ *
  * @example
  * Client authentication by query or headers
  */

@@ -169,12 +169,12 @@ export class WsapixChannel<S = any> extends EventEmitter {
             return Promise.reject(error)
           }
 
-          let error = ""
+          let errorMessage = ""
           if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => {
-            error = msg
+            errorMessage = msg
             cb && cb(new Error(msg))
           })) {
-            return Promise.reject(new Error("Cannot send message - payload validation error:\n" + error))
+            return Promise.reject(new Error("Cannot send message - payload validation error:\n" + errorMessage))
           }
         }
 
@@ -248,7 +248,10 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.messages.push({ kind: MessageKind.server, matcher, schema })
   }
 
-  public clientMessage<S, T = any> (matcher: MessageMatcher, schema?: MessageSchema | MessageHandler<S, T>, handler?: MessageHandler<S, T>) {
+  public clientMessage<S, T = any>(
+    matcher: MessageMatcher,
+    schema?: MessageSchema | MessageHandler<S, T>,
+    handler?: MessageHandler<S, T>) {
 
     if (typeof schema === "function") {
       handler = schema
