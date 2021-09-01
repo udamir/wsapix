@@ -3,9 +3,9 @@ import { promisify } from 'util'
 
 import {
   WsapixMessage, WsapixClient, MessageHandler, MessageKind, DataParser,
-  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware,  
+  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware,
 } from './types'
-import { MessageSchema } from './asyncapi'
+import type { MessageSchema } from './asyncapi'
 import { ClientStatus } from './transport'
 
 /**
@@ -18,10 +18,10 @@ import { ClientStatus } from './transport'
 type MessageHook = (client: WsapixClient, data: any, done: (err?: Error, value?: any) => void) => Promise<any>
 
 /**
- * Hooks are registered with the addHook method and allow you to listen to specific message events lifecycle. 
+ * Hooks are registered with the addHook method and allow you to listen to specific message events lifecycle.
  * `onMessage` - event on client messages
- * `preParse` - event before client message parsing 
- * `preValidation` - event before client message validation 
+ * `preParse` - event before client message parsing
+ * `preValidation` - event before client message validation
  * `preHandler` - event before client message handler execution
  * `preSerialization` - event before send message serialization
  * `preSend` - event before send message to client
@@ -119,13 +119,13 @@ export class WsapixChannel<S = any> extends EventEmitter {
   /**
    * Register message hook
    * @param type - type of hook
-   * 
+   *
    * @param hook - hook handler
    */
   public addHook(type: HookType, hook: MessageHook) {
     const hooks = this.hooks.get(type)
     if (!hooks) {
-      this.hooks.set(type, [ hook ]) 
+      this.hooks.set(type, [ hook ])
     } else {
       this.hooks.set(type, [ ...hooks, hook ])
     }
@@ -154,21 +154,21 @@ export class WsapixChannel<S = any> extends EventEmitter {
 
     const _send = client.send.bind(client)
 
-    client.send = async (data: any, cb?: (error?: Error) => void) => {
+    client.send = async <T = any>(data: T, cb?: (error?: Error) => void) => {
       try {
         // execute hooks
         if (this.validator !== undefined) {
           // preValidation hook
           data = await this.runHook("preValidation", client, data)
-        
+
           const message = this.findServerMessage(data)
-  
+
           if (!message) {
             const error = new Error("Cannot send message: Message schema not found")
             cb && cb(error)
             return Promise.reject(error)
           }
-    
+
           let error = ""
           if (message.schema && !this.validatePayload(message.schema.payload, data, (msg) => {
             error = msg
@@ -177,12 +177,12 @@ export class WsapixChannel<S = any> extends EventEmitter {
             return Promise.reject(new Error("Cannot send message - payload validation error:\n" + error))
           }
         }
-    
+
         // preSerialization hook
         data = await this.runHook("preSerialization", client, data)
         // encode message
         data = this.serializer(data)
-        
+
         // preSend hook
         data = await this.runHook("preSerialization", client, data)
         return _send(data, cb)
@@ -208,27 +208,27 @@ export class WsapixChannel<S = any> extends EventEmitter {
         data = this.parser(data)
       } catch (error) {
         this.emit("error", client, "Unexpected message payload", data)
-        return 
+        return
       }
 
       const message = this.findClientMessage(data)
 
       if (!message) {
         this.emit("error", client, "Message not found", data)
-        return 
+        return
       }
 
       const { handler, schema } = message
 
       if (!handler) {
         this.emit("error", client, `Handler not implemented`, data)
-        return 
+        return
       }
 
       if (schema && this.validator !== undefined) {
         data = await this.runHook("preValidation", client, data)
         if (!this.validatePayload(schema.payload, data, (msg: string) => {
-          this.emit("error", client, msg, data) 
+          this.emit("error", client, msg, data)
         })) { return }
       }
 

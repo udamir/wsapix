@@ -46,9 +46,17 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param transport - wsapix transport
    * @param defaultOptions - channel options
    */
-  constructor (public transport:  Transport, defaultOptions?: ChannelOptions<S>) {
+  constructor (public transport: Transport, defaultOptions?: ChannelOptions<S>) {
     super(defaultOptions?.path || "*", defaultOptions)
+    this.setTransport(transport)
+  }
 
+  /**
+   * Update wsapix transport
+   * @param transport - wsapix transport
+   */
+  public setTransport(transport: Transport) {
+    this.transport = transport
     this.transport.onConnection(this.onConnected.bind(this))
     this.transport.onMessage(this.onMessage.bind(this))
     this.transport.onDisconnect(this.onDisconnect.bind(this))
@@ -112,6 +120,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
   }
 
   /**
+   * @public
    * Generate HTML template for AsyncApi documentation
    * @param asyncApiPath - url for AsyncApi json file
    * @param title - Page title
@@ -147,22 +156,22 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
   /**
    * Register route channel
    * @param path - route path or channel
-   * 
+   *
    * @example
    * Create new route
    * ```ts
    * const chat = wsx.route("/chat", { parser, serializer })
    * ```
-   * 
+   *
    * Register existing channel instance
    * ```ts
    * const chat = new WsapixChannel("/chat", { parser, serializer })
    * wsx.route(chat)
    * ```
    * Route path supports parameters:
-   * @example 
+   * @example
    * `/rooms/{id}`
-   * 
+   *
    * @param options - channel options
    * @returns Channel instance
    */
