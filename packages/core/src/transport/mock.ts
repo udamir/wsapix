@@ -41,7 +41,9 @@ export class MockTransport extends Transport {
       onclose: noop,
       onmessage: noop,
 
-      send: (data: any) => this.handlers.message(client, data),
+      send: (data: any) => {
+        this.handlers.message(client, data)
+      },
 
       close: (code: number = 0, reason: string = "") => {
         client.status = ClientStatus.disconnecting

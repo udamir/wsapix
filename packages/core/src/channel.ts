@@ -140,18 +140,6 @@ export class WsapixChannel<S = any> extends EventEmitter {
   }
 
   protected async onConnect(client: WsapixClient<S>) {
-    // execute midllwares
-    for (const middleware of this.middlewares) {
-      try {
-        await middleware(client)
-      } catch (error) {
-        throw error
-      }
-      if (client.status === ClientStatus.disconnecting || client.status === ClientStatus.disconnected) {
-        return
-      }
-    }
-
     const _send = client.send.bind(client)
 
     client.send = async <T = any>(data: T, cb?: (error?: Error) => void) => {
@@ -186,9 +174,21 @@ export class WsapixChannel<S = any> extends EventEmitter {
         // preSend hook
         data = await this.runHook("preSerialization", client, data)
         return _send(data, cb)
-      } catch (error) {
+      } catch (error: any) {
         cb && cb(error)
         return Promise.reject(error)
+      }
+    }
+
+    // execute midllwares
+    for (const middleware of this.middlewares) {
+      try {
+        await middleware(client)
+      } catch (error) {
+        throw error
+      }
+      if (client.status === ClientStatus.disconnecting || client.status === ClientStatus.disconnected) {
+        return
       }
     }
 
@@ -248,7 +248,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.messages.push({ kind: MessageKind.server, matcher, schema })
   }
 
-  public clientMessage<S, T = any>(
+  public clientMessage<T = any>(
     matcher: MessageMatcher,
     schema?: MessageSchema | MessageHandler<S, T>,
     handler?: MessageHandler<S, T>) {
