@@ -1,6 +1,7 @@
+import { Client } from 'rttl'
+
 import { MessageSchema } from './asyncapi'
 import { WsapixChannel } from './channel'
-import { Client } from './transport'
 
 /**
  * Function for message payload validation
@@ -21,7 +22,7 @@ export type DataParser = (data: any) => any
 /**
  * WsapixChannel constructor options
  */
-export interface ChannelOptions<S> {
+export interface ChannelOptions<T, S> {
   /**
    * Channel route
    */
@@ -30,7 +31,7 @@ export interface ChannelOptions<S> {
   /**
    * List of WsapixMessages for this channel
    */
-  messages?: WsapixMessage<S>[]
+  messages?: WsapixMessage<T, S, any>[]
 
   /**
    * Channel parser
@@ -63,7 +64,7 @@ export enum MessageKind {
  * @param client - client context
  * @param data - message payload
  */
-export type MessageHandler<S, T = any> = (client: WsapixClient<S>, data: T) => void
+export type MessageHandler<T, S, D> = (client: WsapixClient<T, S>, data: D) => void
 
 /**
  * Payload matcher - object or function - to find relevant message in channel
@@ -84,7 +85,7 @@ export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean
 /**
  *
  */
-export interface WsapixMessage<S = any, T = any> {
+export interface WsapixMessage<T, S, D> {
   /**
    * Message kind - server or client
    */
@@ -98,7 +99,7 @@ export interface WsapixMessage<S = any, T = any> {
   /**
    * Message handler
    */
-  handler?: MessageHandler<S, T>
+  handler?: MessageHandler<T, S, D>
 
   /**
    * Message payload JsonSchema
@@ -106,16 +107,16 @@ export interface WsapixMessage<S = any, T = any> {
   schema?: MessageSchema
 }
 
-export type WsapixClient<S = any> = Client & {
+export type WsapixClient<T = any, S = any> = Client<T> & {
   /**
    * Link to client channel
    */
-  channel?: WsapixChannel<S>
+  channel: WsapixChannel<T, S>
 
   /**
    * Client state
    */
-  state?: S
+  state: S
 }
 
 /**
@@ -124,4 +125,7 @@ export type WsapixClient<S = any> = Client & {
  * @example
  * Client authentication by query or headers
  */
-export type WsapixMiddleware<T> = (client: WsapixClient<T>) => void | Promise<void>
+
+export { Transport } from "rttl"
+
+export type WsapixMiddleware<T, S> = (client: WsapixClient<T, S>) => void | Promise<void>

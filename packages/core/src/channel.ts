@@ -1,12 +1,12 @@
 import { EventEmitter } from 'events'
+import { ClientStatus } from 'rttl'
 import { promisify } from 'util'
 
 import {
-  WsapixMessage, WsapixClient, MessageHandler, MessageKind, DataParser,
+  WsapixMessage, MessageHandler, MessageKind, DataParser, WsapixClient,
   MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware,
 } from './types'
 import type { MessageSchema } from './asyncapi'
-import { ClientStatus } from './transport'
 
 /**
  * Handler for event hook
@@ -15,7 +15,7 @@ import { ClientStatus } from './transport'
  * @param done - callback function on complete with update payload
  * @returns promise with updated payload
  */
-type MessageHook = (client: WsapixClient, data: any, done: (err?: Error, value?: any) => void) => Promise<any>
+type MessageHook<T, S> = (client: WsapixClient<T, S>, data: Buffer, done: (err?: Error, value?: any) => void) => Promise<any>
 
 /**
  * Hooks are registered with the addHook method and allow you to listen to specific message events lifecycle.
@@ -28,18 +28,18 @@ type MessageHook = (client: WsapixClient, data: any, done: (err?: Error, value?:
  */
 type HookType = "onMessage" | "preParse" | "preHandler" | "preValidation" | "preSerialization" | "preSend"
 
-export class WsapixChannel<S = any> extends EventEmitter {
-  private middlewares: WsapixMiddleware<S>[] = []
-  private hooks: Map<HookType, MessageHook[]> = new Map()
+export class WsapixChannel<T = any, S = any> extends EventEmitter {
+  private middlewares: WsapixMiddleware<T, S>[] = []
+  private hooks: Map<HookType, MessageHook<T, S>[]> = new Map()
 
   /**
    * connected clients
    */
-  public clients: Set<WsapixClient<S>> = new Set()
+  public clients: Set<WsapixClient<T, S>> = new Set()
   /**
    * Registered messages
    */
-  public messages: WsapixMessage[] = []
+  public messages: WsapixMessage<T, S, any>[] = []
   /**
    * Channel path
    */
@@ -57,21 +57,21 @@ export class WsapixChannel<S = any> extends EventEmitter {
    * @param event - `connect`
    * @param listener - Handler
    */
-  public on(event: "connect", listener: (client: WsapixClient<S>) => void): any
+  public on(event: "connect", listener: (client: WsapixClient<T, S>) => void): any
 
   /**
    * Handle client diconnection
    * @param event - `disconnect`
    * @param listener - Handler
    */
-  public on(event: "disconnect", listener: (client: WsapixClient<S>, code?: number, data?: any) => void): any
+  public on(event: "disconnect", listener: (client: WsapixClient<T, S>, code?: number, data?: any) => void): any
 
   /**
    * Handler for error
    * @param event - `error`
    * @param listener - Handler
    */
-  public on(event: "error", listener: (client: WsapixClient<S>, message: string, data?: any) => void): any
+  public on(event: "error", listener: (client: WsapixClient<T, S>, message: string, data?: any) => void): any
   public on(event: string | symbol, listener: (...args: any[]) => void): any {
     return super.on(event, listener)
   }
@@ -92,10 +92,12 @@ export class WsapixChannel<S = any> extends EventEmitter {
 
   /**
    * Channel constructor
+   * @type T - Transport socket interface
+   * @typw S - Client state interface
    * @param path - channel path
    * @param options - channel options
    */
-  constructor(path?: string | ChannelOptions<S>, options?: ChannelOptions<S>) {
+  constructor(path?: string | ChannelOptions<T, S>, options?: ChannelOptions<T, S>) {
     super()
     if (typeof path === "object") {
       options = path
@@ -112,7 +114,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
    * Register connection hook
    * @param middleware - connection hook
    */
-  public use(middleware: WsapixMiddleware<S>) {
+  public use(middleware: WsapixMiddleware<T, S>) {
     this.middlewares.push(middleware)
   }
 
@@ -122,7 +124,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
    *
    * @param hook - hook handler
    */
-  public addHook(type: HookType, hook: MessageHook) {
+  public addHook(type: HookType, hook: MessageHook<T, S>) {
     const hooks = this.hooks.get(type)
     if (!hooks) {
       this.hooks.set(type, [ hook ])
@@ -131,7 +133,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
     }
   }
 
-  private async runHook (type: HookType, client: WsapixClient<S>, data: any) {
+  private async runHook (type: HookType, client: WsapixClient<T, S>, data: any) {
     for (const hook of this.hooks.get(type) || []) {
       const asyncHook = promisify(hook)
       data = await asyncHook(client, data)
@@ -139,7 +141,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
     return data
   }
 
-  protected async onConnect(client: WsapixClient<S>) {
+  protected async onConnect(client: WsapixClient<T, S>) {
     const _send = client.send.bind(client)
 
     client.send = async <T = any>(data: T, cb?: (error?: Error) => void) => {
@@ -172,7 +174,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
         data = this.serializer(data)
 
         // preSend hook
-        data = await this.runHook("preSerialization", client, data)
+        data = await this.runHook("preSend", client, data)
         return _send(data, cb)
       } catch (error: any) {
         cb && cb(error)
@@ -197,7 +199,8 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.emit("connect", client)
   }
 
-  protected async onMessage(client: WsapixClient<S>, data: any) {
+  protected async onMessage(client: WsapixClient<T, S>, buffer: Buffer, isBinary: boolean) {
+    let data: any = isBinary ? buffer : buffer.toString();
     try {
       // onMessage hook
       data = await this.runHook("onMessage", client, data)
@@ -239,7 +242,7 @@ export class WsapixChannel<S = any> extends EventEmitter {
     }
   }
 
-  protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {
+  protected onDisconnect(client: WsapixClient<T, S>, code?: number, data?: any) {
     this.clients.delete(client)
     this.emit("disconnect", client, code, data)
   }
@@ -248,10 +251,10 @@ export class WsapixChannel<S = any> extends EventEmitter {
     this.messages.push({ kind: MessageKind.server, matcher, schema })
   }
 
-  public clientMessage<T = any>(
+  public clientMessage<D = any>(
     matcher: MessageMatcher,
-    schema?: MessageSchema | MessageHandler<S, T>,
-    handler?: MessageHandler<S, T>) {
+    schema?: MessageSchema | MessageHandler<T, S, D>,
+    handler?: MessageHandler<T, S, D>) {
 
     if (typeof schema === "function") {
       handler = schema
@@ -275,11 +278,11 @@ export class WsapixChannel<S = any> extends EventEmitter {
    * @param data - message payload
    * @returns Message or undefined
    */
-  public findServerMessage(data: { [key: string]: any }): WsapixMessage<S, any> | undefined {
+  public findServerMessage(data: { [key: string]: any }): WsapixMessage<T, S, any> | undefined {
     return this.findMessage(MessageKind.server, data)
   }
 
-  protected inherit(channel: WsapixChannel<S>) {
+  protected inherit(channel: WsapixChannel<T, S>) {
     // set default channel parameters
     this._parser = this._parser || channel.parser
     this._serializer = this._serializer || channel.serializer
@@ -292,11 +295,11 @@ export class WsapixChannel<S = any> extends EventEmitter {
     }
 
     // forward events
-    this.on("error", (client: WsapixClient<S>, data: any) => channel.emit("error", client, data))
-    this.on("disconnect", (client: WsapixClient<S>) => channel.emit("disconnect", client))
+    this.on("error", (client: WsapixClient<T, S>, data: any) => channel.emit("error", client, data))
+    this.on("disconnect", (client: WsapixClient<T, S>) => channel.emit("disconnect", client))
   }
 
-  private findMessage(type: MessageKind, data: { [key: string]: any }) {
+  private findMessage(type: MessageKind, data: { [key: string]: any }): WsapixMessage<T, S, any> | undefined {
     return this.messages.find((msg) => {
       if (msg.kind !== type) {
         return false

@@ -2,10 +2,10 @@ import * as http from "http"
 import WebSocket from "ws"
 import Ajv from "ajv"
 
-import { Wsapix, WsapixClient } from "../packages/core/src"
+import { WsapixClient, Wsapix } from "../src"
 
 const port = 3003
-let wsx: Wsapix
+let wsx: Wsapix<WebSocket>
 let server: http.Server
 
 const initEnv = () => {
@@ -21,9 +21,11 @@ const initEnv = () => {
   server.listen(port)
 }
 
-const closeEnv = async (done: any) => {
+const closeEnv = async () => {
   await wsx.close()
-  server.close(done)
+  await new Promise((resolve, reject) => {
+    server.close((err) => err ? reject() : resolve(err))
+  })
 }
 
 describe("Validation test", () => {
@@ -48,7 +50,7 @@ describe("Validation test", () => {
         required: ["type", "text"],
         additionalProperties: false,
       },
-    }, (client: WsapixClient, data) => {
+    }, (client, data) => {
       client1 = client
       expect(data).toMatchObject(msg1)
       done()
@@ -66,7 +68,7 @@ describe("Validation test", () => {
       data: msg2,
       done
     }
-    wsx.on("error", (client: WsapixClient, message: string, data: any) => {
+    wsx.on("error", (client, message: string, data: any) => {
       expect(message).toBe(error.message)
       expect(data).toMatchObject(error.data)
       error.done()
@@ -111,7 +113,7 @@ describe("Validation test", () => {
 
     ws1.send(JSON.stringify(msg2))
   })
-    
+
   test("Server message should be validated", (done) => {
     const msg3 = { type: "chat:clean", chatId: "123" }
     wsx.serverMessage(({ type }) => type === "chat:clean", {
@@ -127,7 +129,7 @@ describe("Validation test", () => {
         required: ["type", "chatId"]
       }
     })
-    
+
     ws1.onmessage = (event) => {
       expect(event.data).toBe(JSON.stringify(msg3))
       done()
@@ -138,9 +140,9 @@ describe("Validation test", () => {
 
   test("Unknown message should raise error", (done) => {
     const msg4 = { type: "chat:delete", chatId: "123" }
-  
-    client1.send(msg4, (error) => {
-      expect(error).not.toBeUndefined()
+
+    client1.send(msg4, (err) => {
+      expect(err).not.toBeUndefined()
       done()
     }).catch(() => {})
   })

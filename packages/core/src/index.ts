@@ -1,4 +1,3 @@
-export * from "./transport"
 export * from "./asyncapi"
 export * from "./channel"
 export * from "./server"

@@ -1,4 +1,5 @@
-import { WsapixChannel, WsapixClient } from "wsapix"
+import { WebSocket } from "uWebSockets.js"
+import { WsapixChannel } from "wsapix"
 import { Type, Static } from "@sinclair/typebox"
 
 export interface IClientState {
@@ -6,7 +7,7 @@ export interface IClientState {
   name: string
 }
 
-export const chat = new WsapixChannel<IClientState>({ path: "/chat" })
+export const chat = new WsapixChannel<WebSocket, IClientState>({ path: "/chat" })
 
 chat.use((client) => {
   // check auth
@@ -16,10 +17,10 @@ chat.use((client) => {
   }
   client.state = { userId: Date.now().toString(36), name: client.query }
 })
+
 /* Client messages */
 
 // message from client
-
 export const userMessageSchema = {
   $id: "user:message",
   description: "New user message",
@@ -31,7 +32,7 @@ export const userMessageSchema = {
 
 export type UserMessageSchema = Static<typeof userMessageSchema.payload>
 
-chat.clientMessage({ type: "user:message"}, userMessageSchema, (client: WsapixClient, data: UserMessageSchema) => {
+chat.clientMessage<UserMessageSchema>({ type: "user:message"}, userMessageSchema, (client, data) => {
   chat.clients.forEach((c) => {
     if (c === client) { return } 
     c.send({

@@ -1,37 +1,48 @@
-import { Wsapix, WsapixClient, ClientStatus, IClientSocket, MockTransport, ClientSocketState } from "../packages/core/src"
+import * as http from "http"
+import { ClientStatus } from "rttl"
+import WebSocket from "ws"
 
-let wsx: Wsapix
-let mws: MockTransport
+import { Wsapix, WsapixClient } from "../src"
+
+const port = 3000
+let server: http.Server
+let wsx: Wsapix<WebSocket>
 
 const initEnv = () => {
-  mws = new MockTransport()
-  wsx = new Wsapix(mws)
+  server = new http.Server()
+  wsx = Wsapix.WS({ server })
+
+  server.listen(port)
 }
 
 const closeEnv = async () => {
-  return wsx.close()
+  await wsx.close()
+  await new Promise((resolve, reject) => {
+    server.close((err) => err ? reject() : resolve(err))
+  })
 }
 
-describe("Mock transport test 1", () => {
+describe("Websocket transport test 1", () => {
   beforeAll(initEnv)
   afterAll(closeEnv)
 
-  let ws1: IClientSocket
-  let client1: WsapixClient
+  let ws1: WebSocket
+  let client1: WsapixClient<WebSocket>
 
   test(`ws1 client should connect to server`, (done) => {
-    wsx.on("connect", (client: WsapixClient) => {
+
+    wsx.on("connect", (client) => {
       client1 = client
       expect(wsx.clients.has(client)).toBe(true)
       expect(client.status).toBe(ClientStatus.connected)
       done()
     })
-    ws1 = mws.inject()
+    ws1 = new WebSocket(`ws://localhost:${port}`)
   })
 
   test("WS server should get message from ws1", (done) => {
     const msg = { type: "text", text: "test" }
-    wsx.clientMessage({ type: "text" }, (client: WsapixClient, message: any) => {
+    wsx.clientMessage({ type: "text" }, (client, message: any) => {
       expect(message).toMatchObject(msg)
       expect(client).toBe(client1)
       done()
@@ -43,7 +54,7 @@ describe("Mock transport test 1", () => {
 
   test("ws1 client should get message from server", (done) => {
     const msg = { type: "text", text: "test 2" }
-    ws1.onmessage = (event) => {
+    ws1.onmessage = (event: WebSocket.MessageEvent) => {
       const message = JSON.parse(event.data as string)
       expect(message).toMatchObject(msg)
       done()
@@ -52,7 +63,7 @@ describe("Mock transport test 1", () => {
   })
 
   test("WS server should get disconnect event from ws1", (done) => {
-    wsx.on("disconnect", (client: WsapixClient, code?: number, data?: any) => {
+    wsx.on("disconnect", (client, code?: number, data?: any) => {
       expect(code).toBe(4001)
       expect(data).toBe("test")
       expect(client).toBe(client1)
@@ -67,15 +78,15 @@ describe("Mock transport test 1", () => {
   })
 })
 
-describe("Mock transport test 2", () => {
+describe("Websocket transport test 2", () => {
   beforeAll(initEnv)
   afterAll(closeEnv)
 
-  let ws2: IClientSocket
-  let client2: WsapixClient
+  let ws2: WebSocket
+  let client2: WsapixClient<WebSocket>
 
   test(`ws2 client should connect to server to path with query and headers`, (done) => {
-    wsx.on("connect", (client: WsapixClient) => {
+    wsx.on("connect", (client) => {
       client2 = client
       expect(wsx.clients.has(client)).toBe(true)
       expect(client.path).toBe("/test")
@@ -84,11 +95,11 @@ describe("Mock transport test 2", () => {
       expect(client.status).toBe(ClientStatus.connected)
       done()
     })
-    ws2 = mws.inject("/test?param=1", { headers: { "test-header": "1234" } })
+    ws2 = new WebSocket(`ws://localhost:${port}/test?param=1`, { headers: { "test-header": "1234" } })
   })
 
   test(`WS server should handle wrong message payload`, (done) => {
-    wsx.on("error", (client: WsapixClient, message: string, data: any) => {
+    wsx.on("error", (client, message: string, data: any) => {
       expect(message).toBe("Unexpected message payload")
       expect(data).toBe("Hello")
       expect(client).toBe(client2)
@@ -103,7 +114,7 @@ describe("Mock transport test 2", () => {
     ws2.onclose = (event: any) => {
       expect(event.code).toBe(4001)
       expect(event.reason).toBe("test")
-      expect(ws2.readyState).toBe(ClientSocketState.CLOSED)
+      expect(ws2.readyState).toBe(WebSocket.CLOSED)
       done()
     }
     client2.terminate(4001, "test")

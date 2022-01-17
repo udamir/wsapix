@@ -207,15 +207,13 @@ const html = wsx.htmlDocTemplate("/asyncapi", "Chat websocket API")
 Wsapix comes with built-in Mock Transport and Fake WebSocket client injection:
 
 ```ts
-const mws = new MockTransport()
-
 // replace existing wsapix transport
-wsx.setTransport(mws)
+wsx.setTransport(new MockTransport())
 
 // or create wsapix server with mock transport
-// const wsx = new Wsapix(mws)
+// const wsx = new Wsapix(new MockTransport())
 
-const ws1 = mws.inject("/v1?token=12345")
+const ws1 = mwx.inject("/v1?token=12345")
 
 // handle server messages
 ws1.onmessage = ({ data }) => {

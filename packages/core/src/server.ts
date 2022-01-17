@@ -1,9 +1,9 @@
-import type { TemplatedApp } from 'uWebSockets.js'
-import type { ServerOptions } from 'ws'
+import { Transport, WebsocketTransport, uWebsocketOptions, uWebsocketTransport, IClientInjectParams } from 'rttl'
+import type { TemplatedApp, WebSocket as uWebSocket } from 'uWebSockets.js'
+import { ServerOptions, WebSocket } from 'ws'
 
-import { Transport, WebsocketTransport, WebsocketOptions, uWebsocketTransport } from './transport'
 import { IAsyncApiBuilderParams, AsyncApiBuilder, Message } from './asyncapi'
-import { ChannelOptions, MessageKind, WsapixClient } from './types'
+import { WsapixClient, ChannelOptions, MessageKind } from './types'
 import { WsapixChannel } from './channel'
 import { html } from './template'
 
@@ -11,42 +11,46 @@ import { html } from './template'
  * Wsapix extention
  * @param wsapix - wsapix instance
  */
-export type WsapixPlugin<S> = (wsapi: Wsapix<S>) => Promise<void> | void
+export type WsapixPlugin<T = any, S = any> = (wsapi: Wsapix<T, S>) => Promise<void> | void
 
-export class Wsapix<S = any> extends WsapixChannel<S> {
+export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
   /**
    * Map of registered routes
    */
-  public channels: Map<string, WsapixChannel<S>> = new Map()
+  public channels: Map<string, WsapixChannel<T, S>> = new Map()
 
   /**
    * Create Wsapix instance on Http server
+   * @type Q - Client state interface
    * @param options - Http server options
    * @param defaultOptions - channel options
    * @returns Wsapix instance
    */
-  static WS<S = any>(options: ServerOptions, defaultOptions?: ChannelOptions<S>) {
+  static WS<Q>(options: ServerOptions, defaultOptions?: ChannelOptions<WebSocket, Q>) {
     const transport = new WebsocketTransport(options)
-    return new Wsapix<S>(transport, defaultOptions)
+    return new Wsapix<WebSocket, Q>(transport, defaultOptions)
   }
 
   /**
    * Create Wsapix instance on uWebSockets server
+   * @type Q - Client state interface
    * @param options - uWebsocket server and options
    * @param defaultOptions - channel options
    * @returns Wsapix instance
    */
-  static uWS<S = any>(options: { server: TemplatedApp } & WebsocketOptions, defaultOptions?: ChannelOptions<S>) {
+  static uWS<Q>(options: { server: TemplatedApp } & uWebsocketOptions, defaultOptions?: ChannelOptions<uWebSocket, Q>) {
     const transport = new uWebsocketTransport(options)
-    return new Wsapix<S>(transport, defaultOptions)
+    return new Wsapix<uWebSocket, Q>(transport, defaultOptions)
   }
 
   /**
    * Wsapix constructor
+   * @type T - Transport socket interface
+   * @type S - Client state interface
    * @param transport - wsapix transport
    * @param defaultOptions - channel options
    */
-  constructor (public transport: Transport, defaultOptions?: ChannelOptions<S>) {
+  constructor (public transport: Transport<T>, defaultOptions?: ChannelOptions<T, S>) {
     super(defaultOptions?.path || "*", defaultOptions)
     this.setTransport(transport)
   }
@@ -55,15 +59,15 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * Update wsapix transport
    * @param transport - wsapix transport
    */
-  public setTransport(transport: Transport) {
+  public setTransport(transport: Transport<T>) {
     this.transport = transport
-    this.transport.onConnection(this.onConnected.bind(this))
-    this.transport.onMessage(this.onMessage.bind(this))
-    this.transport.onDisconnect(this.onDisconnect.bind(this))
+    this.transport.onConnection((client) => this.onConnected(client as WsapixClient<T, S>))
+    this.transport.onMessage((client, data, isBinary) => this.onMessage(client as WsapixClient<T, S>, data, isBinary))
+    this.transport.onDisconnect((client, code, data) => this.onDisconnect(client as WsapixClient<T, S>, code, data))
     this.transport.onError((error: Error) => this.emit("error", error?.message || ""))
   }
 
-  protected async onConnected(client: WsapixClient<S>) {
+  protected async onConnected(client: WsapixClient<T, S>) {
     // check if channel exist
     const channel = this.findChannel(client.path)
 
@@ -75,13 +79,13 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
     super.onConnect.call(channel, client)
   }
 
-  protected async onMessage(client: WsapixClient<S>, data: any) {
+  protected async onMessage(client: WsapixClient<T, S>, data: Buffer, isBinary: boolean) {
     if (!client.channel) { return }
 
-    return super.onMessage.call(client.channel, client, data)
+    return super.onMessage.call(client.channel, client, data, isBinary)
   }
 
-  protected onDisconnect(client: WsapixClient<S>, code?: number, data?: any) {
+  protected onDisconnect(client: WsapixClient<T, S>, code?: number, data?: any) {
     if (!client.channel) { return }
 
     super.onDisconnect.call(client.channel, client, code, data)
@@ -135,7 +139,7 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param url
    * @returns channel or undefined
    */
-  public findChannel(url: string = "/"): WsapixChannel<S> | undefined {
+  public findChannel(url: string = "/"): WsapixChannel<T, S> | undefined {
     const [path] = url.split("?")
 
     for (const [channelPath, channel] of this.channels) {
@@ -175,9 +179,9 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param options - channel options
    * @returns Channel instance
    */
-  public route(path: string | WsapixChannel<S> | ChannelOptions<S>, options?: ChannelOptions<S>): WsapixChannel<S> {
+  public route(path: string | WsapixChannel<T, S> | ChannelOptions<T, S>, options?: ChannelOptions<T, S>): WsapixChannel<T, S> {
     // create channel
-    const channel = path instanceof WsapixChannel ? path : new WsapixChannel<S>(path, options)
+    const channel = path instanceof WsapixChannel ? path : new WsapixChannel<T, S>(path, options)
     const channelPath = channel.path
     if (channelPath === this.path || this.channels.has(channelPath)) {
       throw new Error(`Path '${channelPath}' already exist!`)
@@ -194,8 +198,19 @@ export class Wsapix<S = any> extends WsapixChannel<S> {
    * @param plugin - Wsapix extention
    * @returns void
    */
-  public register(plugin: WsapixPlugin<S>) {
+  public register(plugin: WsapixPlugin<T, S>) {
     return plugin(this)
+  }
+
+  /**
+   * Inject mock client
+   * @param url - connection url
+   * @param params.connectionDelay - connection deleay (optional)
+   * @param params.headers - connection headers (optional)
+   * @returns MockSocket
+   */
+  public inject(url?: string, params?: IClientInjectParams) {
+    return this.transport.inject(url, params)
   }
 
   /**
