@@ -8,7 +8,7 @@
     "build": "lerna run build",
     "clean": "lerna clean",
     "boot": "lerna bootstrap",
-    "test": "jest --collectCoverage",
+    "test": "jest --collectCoverage --verbose --runInBand --forceExit",
     "example": "lerna run start --scope @wsapix/examples --stream",
     "graph": "lerna list --graph",
     "bump": "lerna version prerelease --force-publish --no-push --no-git-tag-version",
@@ -24,9 +24,9 @@
     "jest": "^26.6.3",
     "lerna": "^4.0.0",
     "ts-jest": "^26.4.4",
-    "ts-node": "^8.10.2",
+    "ts-node": "^10.8.0",
     "tslint": "^6.1.3",
-    "typescript": "^4.3.5"
+    "typescript": "^4.6.4"
   },
   "jest": {
     "transform": {
