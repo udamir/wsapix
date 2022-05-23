@@ -23,7 +23,7 @@
   "author": "Damir Yusipov",
   "license": "MIT",
   "dependencies": {
-    "@sinclair/typebox": "^0.20.4",
+    "@sinclair/typebox": "^0.23.5",
     "ajv": "^8.6.2",
     "notepack.io": "^2.3.0",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.6.0",
