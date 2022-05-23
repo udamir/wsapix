@@ -26,6 +26,9 @@
     "build": "tsc",
     "test": "jest --verbose"
   },
+	"dependencies": {
+		"rttl": "^0.1.7"
+	},
 	"peerdependencies": {
 		"uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.6.0",
 		"ws": "^8.6.0"
