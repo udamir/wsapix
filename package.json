@@ -20,8 +20,8 @@
     "postinstall": "npm run boot"
   },
   "devDependencies": {
-    "@types/jest": "^26.0.24",
-    "jest": "^26.6.3",
+    "@types/jest": "^28.1.1",
+    "jest": "^28.1.1",
     "lerna": "^4.0.0",
     "ts-jest": "^26.4.4",
     "ts-node": "^10.8.0",
