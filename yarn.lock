@@ -1402,10 +1402,10 @@
   dependencies:
     "@octokit/openapi-types" "^11.2.0"
 
-"@sinclair/typebox@^0.20.4":
-  version "0.20.6"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.20.6.tgz#98b08aafb4556b85e9ba78d5075aed23cf04eca1"
-  integrity sha512-8/y8a2Xerrfym1W0lNtFe2+1OsWSao5S7A3b2375+vcAIh0pdf6Sgz4FH2dwpVnH9bJeIiq+RvT5pbEgM9Q28Q==
+"@sinclair/typebox@^0.24.1":
+  version "0.24.1"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.24.1.tgz#b4ff200fb4f18dfd15c53e984d8801e2c8df1526"
+  integrity sha512-v59jW0KQIy4iMP0Pn7gcpQ48YDXa9vOopsRhaPWmsStTxaVNYIqFY3eK6y4PU+53hlQoaQ8pAxU4cPIaMFEJwg==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
