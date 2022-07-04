@@ -1403,9 +1403,9 @@
     "@octokit/openapi-types" "^11.2.0"
 
 "@sinclair/typebox@^0.24.1":
-  version "0.24.3"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.24.3.tgz#dd74a836233305bca4078c23d7ab926ad53e8ed6"
-  integrity sha512-/h/IFTmwpLQeHbtkPb7DUr/jtl7VW8xZgIIAZOK5vRpKQRuJPUdJY1ltAR2Ba7n8vQLP4porDyg20oobIvXcUQ==
+  version "0.24.8"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.24.8.tgz#2e41fb3b48f1985749aee8fe7ca16c15a5b021fb"
+  integrity sha512-4Cf8AFKViEeTifdga3mQxNmWbLPQJ0Ab5nAODCWulf58rWEqFEiBBsqc/RoRdugW0QyMwl0pZTKDyrVhGEYOYA==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
