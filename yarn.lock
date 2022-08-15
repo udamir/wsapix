@@ -1523,9 +1523,9 @@
     node-gyp-build "^4.3.0"
 
 "@sinclair/typebox@^0.24.1":
-  version "0.24.27"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.24.27.tgz#d55643516a1546174e10da681a8aaa81e757452d"
-  integrity sha512-K7C7IlQ3zLePEZleUN21ceBA2aLcMnLHTLph8QWk1JK37L90obdpY+QGY8bXMKxf1ht1Z0MNewvXxWv0oGDYFg==
+  version "0.24.28"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.24.28.tgz#15aa0b416f82c268b1573ab653e4413c965fe794"
+  integrity sha512-dgJd3HLOkLmz4Bw50eZx/zJwtBq65nms3N9VBYu5LTjJ883oBFkTyXRlCB/ZGGwqYpJJHA5zW2Ibhl5ngITfow==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
