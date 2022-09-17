@@ -1,6 +1,6 @@
 {
 	"name": "wsapix",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Websocket server API framework",
 	"input": "./src/index.ts",
 	"main": "./dist/index.js",
@@ -30,7 +30,7 @@
 		"rttl": "^0.1.7"
 	},
 	"peerdependencies": {
-		"uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.6.0",
+		"uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.10.0",
 		"ws": "^8.6.0"
 	},
 	"devDependencies": {

@@ -4,7 +4,7 @@ import { promisify } from 'util'
 
 import {
   WsapixMessage, MessageHandler, MessageKind, DataParser, WsapixClient,
-  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware,
+  MessageMatcher, ChannelOptions, MessageValidator, WsapixMiddleware, ClientRequestSchema,
 } from './types'
 import type { MessageSchema } from './asyncapi'
 
@@ -44,6 +44,16 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
    * Channel path
    */
   public path: string
+
+  public schema?: ClientRequestSchema
+
+  /**
+   * Channel path params
+   */
+  private _pathArr: string[]
+  private _pathTestExp: RegExp
+  private _pathWithParams: boolean
+
   /**
    * Channel validator
    */
@@ -104,7 +114,11 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
       path = path.path
     }
     this.path = path || "/"
+    this._pathArr = this.path.replace(/^\/+|\/+$/g, "").split("/")
+    this._pathTestExp = new RegExp("\/" + this._pathArr.map((i) => i[0] === "{" && i.slice(-1) === "}" ? "[A-Za-z0-9_.\-]+" : i).join("\/") + "$", "gi")
+    this._pathWithParams = new RegExp("\{(.*?)\}").test(this.path)
     this.validator = options?.validator
+    this.schema = options?.schema || {}
     this.messages = options?.messages || []
     this._parser = options?.parser || "json"
     this._serializer = options?.serializer || "json"
@@ -133,6 +147,10 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
     }
   }
 
+  public matchPath(path: string) {
+    return this._pathTestExp.test(path)
+  }
+
   private async runHook (type: HookType, client: WsapixClient<T, S>, data: any) {
     for (const hook of this.hooks.get(type) || []) {
       const asyncHook = promisify(hook)
@@ -143,6 +161,31 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
 
   protected async onConnect(client: WsapixClient<T, S>) {
     const _send = client.send.bind(client)
+
+    if (this._pathWithParams) {
+      // TODO: Add path params validation
+      const pathParams: Record<string, string> = {}
+      const pathArr = client.path?.replace(/^\/+|\/+$/g, "").split("/") || []
+
+      pathArr.forEach((key, i) => {
+        const p = this._pathArr[i]
+        if (p[0] === "{" && p.slice(-1) === "}") {
+          pathParams[p.slice(1,-1)] = key
+        }
+      })
+
+      client.pathParams = pathParams
+    }
+
+    if (client.query) {
+      // TODO: Add query params validation
+      client.queryParams = Object.fromEntries(
+        client.query.split("&").filter((p) => !!p).map((p) => {
+          const [k, v] = p.split("=")
+          return [k, decodeURI(v)]
+        })
+      )
+    }
 
     client.send = async <T = any>(data: T, cb?: (error?: Error) => void) => {
       try {
@@ -307,6 +350,9 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
 
       if (typeof msg.matcher === "function") {
         return msg.matcher(data)
+      }
+      else if (typeof msg.matcher === "string") {
+        return data[msg.matcher] !== undefined && msg.schema?.payload?.[msg.matcher] === data[msg.matcher]
       } else {
         let fields = Object.keys(msg.matcher).length
         for (const key of Object.keys(msg.matcher)) {

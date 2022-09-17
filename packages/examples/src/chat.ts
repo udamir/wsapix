@@ -7,15 +7,30 @@ export interface IClientState {
   name: string
 }
 
-export const chat = new WsapixChannel<WebSocket, IClientState>({ path: "/chat" })
+const chatSchema = {
+  params: {
+    roomId: {
+      type: "string",
+      description: "Room id"
+    }
+  },
+  query: {
+    name: {
+      type: "string",
+      description: "User display name"
+    }
+  }
+}
+
+export const chat = new WsapixChannel<WebSocket, IClientState>({ path: "/chat/{roomId}", schema: chatSchema })
 
 chat.use((client) => {
   // check auth
-  if (!client.query) {
+  if (!client.queryParams?.name) {
     client.send({ type: "error", message: "Wrong token!", code: 401 })
     return client.terminate(4003)
   }
-  client.state = { userId: Date.now().toString(36), name: client.query }
+  client.state = { userId: Date.now().toString(36), name: client.queryParams.name }
 })
 
 /* Client messages */

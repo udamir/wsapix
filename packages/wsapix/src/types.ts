@@ -29,6 +29,11 @@ export interface ChannelOptions<T, S> {
   path?: string
 
   /**
+   * Client request schema
+   */
+  schema?: ClientRequestSchema
+
+  /**
    * List of WsapixMessages for this channel
    */
   messages?: WsapixMessage<T, S, any>[]
@@ -80,7 +85,7 @@ export type MessageHandler<T, S, D> = (client: WsapixClient<T, S>, data: D) => v
  * wsx.clientMessage((data: any) => data.type === "text", handler)
  * ```
  */
-export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean)
+export type MessageMatcher = { [key: string]: string } | ((data: any) => boolean) | string
 
 /**
  *
@@ -107,11 +112,27 @@ export interface WsapixMessage<T, S, D> {
   schema?: MessageSchema
 }
 
+export interface ClientRequestSchema {
+  query?: Record<string, unknown>
+  params?: Record<string, unknown>
+  headers?: Record<string, unknown>
+}
+
 export type WsapixClient<T = any, S = any> = Client<T> & {
   /**
    * Link to client channel
    */
   channel: WsapixChannel<T, S>
+
+  /**
+   * Client request path params
+   */
+  pathParams?: { [key: string]: string }
+
+  /**
+   * Client request query params
+   */
+  queryParams?: { [key: string]: string }
 
   /**
    * Client state

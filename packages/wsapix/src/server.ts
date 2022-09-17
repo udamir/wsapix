@@ -3,7 +3,7 @@ import type { TemplatedApp, WebSocket as uWebSocket } from 'uWebSockets.js'
 import { ServerOptions, WebSocket } from 'ws'
 
 import { IAsyncApiBuilderParams, AsyncApiBuilder, Message } from './asyncapi'
-import { WsapixClient, ChannelOptions, MessageKind } from './types'
+import { WsapixClient, ChannelOptions, MessageKind, ClientRequestSchema } from './types'
 import { WsapixChannel } from './channel'
 import { html } from './template'
 
@@ -101,7 +101,8 @@ export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
     const channels = [ this, ...this.channels.values() ]
     for (const channel of channels) {
       // parse path params
-      const pathParams = {}
+      const { params, query } = channel.schema || {} as ClientRequestSchema
+      // const bindings = query ? { ws: { query: { type: "object", properties: query } } }: undefined
 
       // split pubsub messages
       const pubMessages: Message[] = []
@@ -117,7 +118,7 @@ export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
       }
 
       // add channel
-      asyncapi.addChannel(channel.path, pubMessages, subMessages, pathParams)
+      asyncapi.addChannel(channel.path, pubMessages, subMessages, params)
     }
 
     return asyncapi.generate()
@@ -142,16 +143,10 @@ export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
   public findChannel(url: string = "/"): WsapixChannel<T, S> | undefined {
     const [path] = url.split("?")
 
-    for (const [channelPath, channel] of this.channels) {
-      const exp = new RegExp("\/" + channelPath
-        .replace(/^\/+|\/+$/g, "")
-        .split("/")
-        .map((item) => item[0] === "{" && item.slice(-1) === "}" ? "[A-Za-z0-9_.\-]+" : item)
-        .join("\/") + "$")
-
-        if (exp.test(path)) {
-          return channel
-        }
+    for (const [_, channel] of this.channels) {
+      if (channel.matchPath(path)) {
+        return channel
+      }
     }
 
     return (this.path === url || this.path === "*") ? this : this.channels.get("*")

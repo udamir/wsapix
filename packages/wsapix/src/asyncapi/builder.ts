@@ -37,28 +37,33 @@ export class AsyncApiBuilder {
     })
   }
 
-  public addChannel(name: string, pubMessages: MessageSchema[], subMessages: MessageSchema[], params?: any ) {
+  public addChannel(name: string, pubMessages: MessageSchema[], subMessages: MessageSchema[], parameters?: any) {
     this.channels.set(name, {
-      ... pubMessages.length ? { publish: {
-        description: "Send messages to the server",
-        message: {
-          ...pubMessages.length > 1 ? {
-            oneOf: pubMessages.map((msg) => this.addMessageRef(msg))
-          } : this.addMessageRef(pubMessages[0])
+      ...parameters ? { parameters } : {},
+      ...pubMessages.length ? {
+        publish: {
+          description: "Send messages to the server",
+          message: {
+            ...pubMessages.length > 1 ? {
+              oneOf: pubMessages.map((msg) => this.addMessageRef(msg))
+            } : this.addMessageRef(pubMessages[0])
+          }
         }
-      }} : {},
-      ... subMessages.length ? { subscribe: {
-        description: "Messages that you receive from the server",
-        message: {
-          ...subMessages.length > 1 ? {
-            oneOf: subMessages.map((msg) => this.addMessageRef(msg))
-          } : this.addMessageRef(subMessages[0])
+      } : {},
+      ...subMessages.length ? {
+        subscribe: {
+          description: "Messages that you receive from the server",
+          message: {
+            ...subMessages.length > 1 ? {
+              oneOf: subMessages.map((msg) => this.addMessageRef(msg))
+            } : this.addMessageRef(subMessages[0])
+          }
         }
-      }} : {},
+      } : {},
     })
   }
 
-  private addMessageRef (msg: MessageSchema): Message | Ref {
+  private addMessageRef(msg: MessageSchema): Message | Ref {
     const { $id, ...data } = msg
     const payload = this.addSchemaRef(msg.payload)
     const message = { ...data, payload }

@@ -27,14 +27,17 @@ describe("Channels test", () => {
 
   test("WS server should add route", (done) => {
     const msg1 = { type: "test", test: "test" }
-    const route = wsx.route("/test")
-    expect(wsx.channels.has("/test")).toBe(true)
+    const id = "123"
+    const route = wsx.route("/rooms/{id}/test")
+    expect(wsx.channels.has("/rooms/{id}/test")).toBe(true)
 
     route.clientMessage({ type: "test" }, (client, msg: any) => {
+      expect(client.pathParams).toMatchObject({ id })
+      expect(client.queryParams).toMatchObject({ sort: "1", foo: "bar" })
       expect(msg).toMatchObject(msg1)
       done()
     })
-    const ws3 = new WebSocket(`ws://localhost:${port}/test`)
+    const ws3 = new WebSocket(`ws://localhost:${port}/rooms/${id}/test?sort=1&foo=bar`)
     ws3.onopen = () => {
       ws3.send(JSON.stringify(msg1))
     }
