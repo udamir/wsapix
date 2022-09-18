@@ -15,7 +15,8 @@ import type { MessageSchema } from './asyncapi'
  * @param done - callback function on complete with update payload
  * @returns promise with updated payload
  */
-type MessageHook<T, S> = (client: WsapixClient<T, S>, data: Buffer, done: (err?: Error, value?: any) => void) => Promise<any>
+type MessageHook<T, S> =
+  (client: WsapixClient<T, S>, data: Buffer, done: (err?: Error, value?: any) => void) => Promise<any>
 
 /**
  * Hooks are registered with the addHook method and allow you to listen to specific message events lifecycle.
@@ -141,9 +142,9 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
   public addHook(type: HookType, hook: MessageHook<T, S>) {
     const hooks = this.hooks.get(type)
     if (!hooks) {
-      this.hooks.set(type, [ hook ])
+      this.hooks.set(type, [hook])
     } else {
-      this.hooks.set(type, [ ...hooks, hook ])
+      this.hooks.set(type, [...hooks, hook])
     }
   }
 
@@ -151,7 +152,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
     return this._pathTestExp.test(path)
   }
 
-  private async runHook (type: HookType, client: WsapixClient<T, S>, data: any) {
+  private async runHook(type: HookType, client: WsapixClient<T, S>, data: any) {
     for (const hook of this.hooks.get(type) || []) {
       const asyncHook = promisify(hook)
       data = await asyncHook(client, data)
@@ -170,7 +171,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
       pathArr.forEach((key, i) => {
         const p = this._pathArr[i]
         if (p[0] === "{" && p.slice(-1) === "}") {
-          pathParams[p.slice(1,-1)] = key
+          pathParams[p.slice(1, -1)] = key
         }
       })
 
@@ -187,7 +188,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
       )
     }
 
-    client.send = async <T = any>(data: T, cb?: (error?: Error) => void) => {
+    client.send = async (data: Record<string, any>, cb?: (error?: Error) => void) => {
       try {
         // execute hooks
         if (this.validator !== undefined) {
@@ -243,7 +244,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
   }
 
   protected async onMessage(client: WsapixClient<T, S>, buffer: Buffer, isBinary: boolean) {
-    let data: any = isBinary ? buffer : buffer.toString();
+    let data: any = isBinary ? buffer : buffer.toString()
     try {
       // onMessage hook
       data = await this.runHook("onMessage", client, data)
@@ -290,7 +291,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
     this.emit("disconnect", client, code, data)
   }
 
-  public serverMessage (matcher: MessageMatcher, schema?: MessageSchema) {
+  public serverMessage(matcher: MessageMatcher, schema?: MessageSchema) {
     this.messages.push({ kind: MessageKind.server, matcher, schema })
   }
 
@@ -312,7 +313,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
    * @param data - payload
    * @returns Message or undefined
    */
-  public findClientMessage(data: { [key: string]: any }) {
+  public findClientMessage(data: Record<string, any>) {
     return this.findMessage(MessageKind.client, data)
   }
 
@@ -321,7 +322,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
    * @param data - message payload
    * @returns Message or undefined
    */
-  public findServerMessage(data: { [key: string]: any }): WsapixMessage<T, S, any> | undefined {
+  public findServerMessage(data: Record<string, any>): WsapixMessage<T, S, any> | undefined {
     return this.findMessage(MessageKind.server, data)
   }
 
@@ -333,7 +334,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
 
     // add middlwares and messages
     if (channel.path === "*") {
-      this.middlewares = [ ...channel.middlewares, ...this.middlewares ]
+      this.middlewares = [...channel.middlewares, ...this.middlewares]
       this.messages.push(...channel.messages)
     }
 
@@ -342,7 +343,7 @@ export class WsapixChannel<T = any, S = any> extends EventEmitter {
     this.on("disconnect", (client: WsapixClient<T, S>) => channel.emit("disconnect", client))
   }
 
-  private findMessage(type: MessageKind, data: { [key: string]: any }): WsapixMessage<T, S, any> | undefined {
+  private findMessage(type: MessageKind, data: Record<string, any>): WsapixMessage<T, S, any> | undefined {
     return this.messages.find((msg) => {
       if (msg.kind !== type) {
         return false

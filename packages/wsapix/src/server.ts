@@ -50,7 +50,7 @@ export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
    * @param transport - wsapix transport
    * @param defaultOptions - channel options
    */
-  constructor (public transport: Transport<T>, defaultOptions?: ChannelOptions<T, S>) {
+  constructor(public transport: Transport<T>, defaultOptions?: ChannelOptions<T, S>) {
     super(defaultOptions?.path || "*", defaultOptions)
     this.setTransport(transport)
   }
@@ -98,11 +98,15 @@ export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
    */
   public asyncapi(params: IAsyncApiBuilderParams): string {
     const asyncapi = new AsyncApiBuilder(params)
-    const channels = [ this, ...this.channels.values() ]
+    const channels = [this, ...this.channels.values()]
     for (const channel of channels) {
       // parse path params
-      const { params, query } = channel.schema || {} as ClientRequestSchema
-      // const bindings = query ? { ws: { query: { type: "object", properties: query } } }: undefined
+      const { params, query, headers } = channel.schema || {} as ClientRequestSchema
+      const bindings = query || headers ? { ws: { 
+        bindingVersion: "0.1.0",
+        ... query ? { query: { type: "object", properties: query } } : {}, 
+        ... headers ? { headers: { type: "object", properties: headers } } : {} 
+      } }: undefined
 
       // split pubsub messages
       const pubMessages: Message[] = []
@@ -118,7 +122,7 @@ export class Wsapix<T = any, S = any> extends WsapixChannel<T, S> {
       }
 
       // add channel
-      asyncapi.addChannel(channel.path, pubMessages, subMessages, params)
+      asyncapi.addChannel(channel.path, pubMessages, subMessages, params, bindings)
     }
 
     return asyncapi.generate()

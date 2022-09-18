@@ -15,11 +15,11 @@ export const html = (path: string, title?: string) => `
     You need to enable JavaScript to run this app.
   </noscript>
   <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.5.0/webcomponents-bundle.js"></script>
-  <script src="https://unpkg.com/@asyncapi/web-component@0.19.0/lib/asyncapi-web-component.js" defer></script>
+  <script src="https://unpkg.com/@asyncapi/web-component@1.0.0-next.32/lib/asyncapi-web-component.js" defer></script>
 
   <asyncapi-component
     schemaUrl="${path}"
-    cssImportPath="https://unpkg.com/@asyncapi/react-component@0.19.0/lib/styles/fiori.css">
+    cssImportPath="https://unpkg.com/@asyncapi/react-component@1.0.0-next.32/styles/default.min.css">
   </asyncapi-component></body>
 
 </html>

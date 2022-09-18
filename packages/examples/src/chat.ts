@@ -10,7 +10,7 @@ export interface IClientState {
 const chatSchema = {
   params: {
     roomId: {
-      type: "string",
+      schema: { type: "string" },
       description: "Room id"
     }
   },

@@ -37,9 +37,15 @@ export class AsyncApiBuilder {
     })
   }
 
-  public addChannel(name: string, pubMessages: MessageSchema[], subMessages: MessageSchema[], parameters?: any) {
+  public addChannel(
+    name: string,
+    pubMessages: MessageSchema[],
+    subMessages: MessageSchema[],
+    parameters?: any,
+    bindings?: any) {
     this.channels.set(name, {
       ...parameters ? { parameters } : {},
+      ...bindings ? { bindings } : {},
       ...pubMessages.length ? {
         publish: {
           description: "Send messages to the server",
