@@ -1530,9 +1530,9 @@
     esquery "^1.0.1"
 
 "@sinclair/typebox@^0.25.2":
-  version "0.25.16"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.25.16.tgz#daf07d14d93897d6f7849159d8242808b956b069"
-  integrity sha512-5sclbtYBKQ0W5hY8ovF/cBbQV+FWBZArd738hQpLgWUdlWyuOA0HOuYN178jUJRz0pXuL1+UYR+LCMvoR47osg==
+  version "0.25.17"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.25.17.tgz#77661d05d203f027745edaf92d3ab621c426ddc4"
+  integrity sha512-OLQlcfNZn2Qy59LE7Fzt2dLAxvVx3F7GsAGpQPKWq1nsdzPpudaSNjwhrjc1HgtbidSxxJmSe7RNTbedFlSqkg==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
