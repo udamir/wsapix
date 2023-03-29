@@ -941,10 +941,10 @@
   dependencies:
     esquery "^1.0.1"
 
-"@sinclair/typebox@^0.25.2":
-  version "0.25.24"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.25.24.tgz#8c7688559979f7079aacaf31aa881c3aa410b718"
-  integrity sha512-XJfwUVUKDHF5ugKwIcxEgc9k8b7HbznCp6eUfWgu710hMPNIO4aw4/zB5RogDQz8nd6gyCDpU9O/m6qYEWY6yQ==
+"@sinclair/typebox@^0.26.7":
+  version "0.26.7"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.26.7.tgz#34faf7d8beffefb5ed9c2d6de3900db6709cd6a8"
+  integrity sha512-lDClq3usrxGZ30W/ILuIJyPNM27lhLDpMEKnKp7QklMtU3tmEfs5v8Qdlcw2JHmhlzsH5tKGCAkd28xp2jOOxQ==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
