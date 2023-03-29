@@ -942,9 +942,9 @@
     esquery "^1.0.1"
 
 "@sinclair/typebox@^0.26.7":
-  version "0.26.7"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.26.7.tgz#34faf7d8beffefb5ed9c2d6de3900db6709cd6a8"
-  integrity sha512-lDClq3usrxGZ30W/ILuIJyPNM27lhLDpMEKnKp7QklMtU3tmEfs5v8Qdlcw2JHmhlzsH5tKGCAkd28xp2jOOxQ==
+  version "0.26.8"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.26.8.tgz#daea92a69f2903b1f1d9582b9539553f144aba6b"
+  integrity sha512-fvAkOrUWndf5vjptkW+4TeTH84/bILWQHgk7rbbzT8trZxW+b84lr8dZQPM/r7cGNRFxDaJYsMjHCikEYyAHaw==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
