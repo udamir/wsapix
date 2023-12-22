@@ -23,7 +23,7 @@
     "test": "jest --verbose"
   },
 	"dependencies": {
-		"@sinclair/typebox": "^0.31.1",
+		"@sinclair/typebox": "^0.32.0",
 		"ajv": "^8.6.2",
 		"wsapix": "^0.5.2",
 		"notepack.io": "^3.0.1",
