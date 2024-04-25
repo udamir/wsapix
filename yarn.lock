@@ -1420,9 +1420,9 @@
   integrity sha512-XJfwUVUKDHF5ugKwIcxEgc9k8b7HbznCp6eUfWgu710hMPNIO4aw4/zB5RogDQz8nd6gyCDpU9O/m6qYEWY6yQ==
 
 "@sinclair/typebox@^0.32.0":
-  version "0.32.20"
-  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.32.20.tgz#32bdeb6b185188622f965ebbc88e1a6d5127d88a"
-  integrity sha512-ziK497ILSIYMxD/thl496idIb03IZPlha04itLQu1xAFQbumWZ+Dj4PMMCkDRpAYhvVSdmRlTjGu2B2MA5RplQ==
+  version "0.32.24"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.32.24.tgz#936ec256e02331a9ec7d321f3831d1b1578ba4a3"
+  integrity sha512-2NhY+gf/fHvqYlWUAjuCI4+/esEVDicSIPLMFC98bZrqQ+YYpBc9YPOsAEosQNhu6AhVomlwn+yDe0UPzUYFTw==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
